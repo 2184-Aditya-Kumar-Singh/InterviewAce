@@ -5,11 +5,13 @@ import {
 
 import { z } from "zod";
 
-import {
-  GoogleGenerativeAI,
-} from "@google/generative-ai";
+import Groq from "groq-sdk";
 
 import { rateLimit } from "@/lib/rate-limit";
+
+const client = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 const schema = z.object({
   language: z.enum([
@@ -102,7 +104,7 @@ export async function POST(
     );
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return NextResponse.json({
       review: mockReview(
         parsed.data.code
@@ -111,16 +113,6 @@ export async function POST(
   }
 
   try {
-    const genAI =
-      new GoogleGenerativeAI(
-        process.env.GEMINI_API_KEY
-      );
-
-    const model =
-      genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-      });
-
     const prompt = `
 Review this coding interview submission.
 
@@ -141,23 +133,57 @@ Submission:
 ${JSON.stringify(parsed.data)}
 `;
 
-    const result =
-      await model.generateContent(
-        prompt
-      );
-
     const response =
-      await result.response;
+      await client.chat.completions.create({
+        model: "llama3-70b-8192",
 
-    const text = response.text();
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert coding interview reviewer. Return ONLY valid JSON.",
+          },
+
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+
+        temperature: 0.5,
+      });
+
+    const text =
+      response.choices[0]
+        ?.message?.content || "";
+
+    console.log(
+      "GROQ REVIEW RESPONSE:",
+      text
+    );
 
     const cleaned = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
 
-    const review =
-      JSON.parse(cleaned);
+    let review;
+
+    try {
+      review =
+        JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error(
+        "JSON Parse Error:",
+        parseError
+      );
+
+      return NextResponse.json({
+        review: mockReview(
+          parsed.data.code
+        ),
+      });
+    }
 
     return NextResponse.json({
       review:
@@ -169,7 +195,7 @@ ${JSON.stringify(parsed.data)}
     });
   } catch (err) {
     console.error(
-      "GEMINI REVIEW ERROR:",
+      "GROQ REVIEW ERROR:",
       err
     );
 
