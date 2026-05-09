@@ -366,13 +366,27 @@ export default function InterviewPage() {
       return;
     }
 
-    const nextQuestion =
-      await generateQuestion({
-        resume,
-        jd,
-        difficulty,
-        round,
-        persona,
+    await generateQuestion({
+  resume,
+  jd:
+    jd || {
+      role:
+        "Software Engineer",
+
+      summary: "",
+
+      matchPercent: 0,
+
+      requiredSkills: [],
+
+      missingSkills: [],
+    },
+
+  difficulty,
+
+  round,
+
+  persona,
         plan,
         asked:
           nextAnswers.map(
