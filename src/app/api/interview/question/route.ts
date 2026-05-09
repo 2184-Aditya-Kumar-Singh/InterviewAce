@@ -42,6 +42,55 @@ const schema = z.object({
     .optional(),
 });
 
+function fallbackQuestion(
+  round: string
+) {
+  if (
+    round === "HR"
+  ) {
+    return {
+      id:
+        crypto.randomUUID(),
+
+      question:
+        "Tell me about a challenging situation you handled in a team project.",
+
+      focusArea:
+        "Behavioral",
+
+      round: "HR",
+
+      expectedSignals:
+        [
+          "communication",
+          "ownership",
+          "teamwork",
+        ],
+    };
+  }
+
+  return {
+    id:
+      crypto.randomUUID(),
+
+    question:
+      "Explain a technical challenge you faced recently and how you solved it.",
+
+    focusArea:
+      "Problem Solving",
+
+    round:
+      "Technical",
+
+    expectedSignals:
+      [
+        "technical depth",
+        "problem solving",
+        "decision making",
+      ],
+  };
+}
+
 export async function POST(
   request: NextRequest
 ) {
@@ -56,7 +105,8 @@ export async function POST(
       60_000
     );
 
-  if (limited) return limited;
+  if (limited)
+    return limited;
 
   try {
     const parsed =
@@ -64,7 +114,9 @@ export async function POST(
         await request.json()
       );
 
-    if (!parsed.success) {
+    if (
+      !parsed.success
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -72,7 +124,9 @@ export async function POST(
           error:
             "Invalid interview request",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
@@ -90,51 +144,92 @@ export async function POST(
       asked = [],
     } = parsed.data;
 
-    const prompt = `
-You are an expert AI interviewer conducting a realistic mock interview.
+    const personaBehavior =
+      {
+        "Friendly HR":
+          "Warm, conversational, supportive, recruiter-like.",
 
-Candidate Resume Summary:
+        "Strict Technical Lead":
+          "Strict, analytical, deep technical interviewer. Push candidate harder.",
+
+        "Senior Engineering Manager":
+          "Leadership-focused, architecture-focused, evaluates communication and ownership.",
+
+        "Corporate VP":
+          "Business-oriented executive interviewer focusing on impact and strategic thinking.",
+      };
+
+    const prompt = `
+You are conducting a REALISTIC FAANG-style mock interview.
+
+INTERVIEW SETTINGS:
+
+Interview Type:
+${round}
+
+Difficulty:
+${difficulty}
+
+Interviewer Personality:
+${persona}
+
+Behavior Style:
+${
+  personaBehavior[
+    persona
+  ]
+}
+
+CANDIDATE INFORMATION:
+
+Resume Summary:
 ${resume?.summary || ""}
 
-Candidate Skills:
+Skills:
 ${resume?.skills?.join(", ") || ""}
 
-Candidate Projects:
+Projects:
 ${resume?.projects?.join(", ") || ""}
 
-Target Role:
+Education:
+${resume?.education?.join(", ") || ""}
+
+TARGET ROLE:
+
+Role:
 ${jd?.role || ""}
 
 Required Skills:
 ${jd?.requiredSkills?.join(", ") || ""}
 
-Difficulty:
-${difficulty}
+Missing Skills:
+${jd?.missingSkills?.join(", ") || ""}
 
-Interview Type:
-${round}
-
-Interviewer Persona:
-${persona}
-
-Previously Asked Questions:
+PREVIOUS QUESTIONS:
 ${asked.join("\n")}
 
-Rules:
-- Ask ONLY ONE interview question
-- Make it realistic
-- Keep it conversational
-- Technical questions should feel like FAANG/company interviews
-- HR questions should feel recruiter-like
-- Mixed should naturally alternate
-- NEVER return objects as question
-- ALWAYS return plain string question
-- Avoid repeating questions
-- Focus on resume + JD alignment
+IMPORTANT RULES:
 
-Return ONLY valid raw JSON.
+- Ask ONLY ONE question
+- NEVER ask multiple questions
+- NEVER return markdown
+- NEVER return explanations
+- Ask conversationally
+- Avoid repeating previous questions
+- Focus heavily on resume projects and JD skills
+- Technical questions should feel company-level
+- Ask realistic follow-up style questions
+- Medium/Hard difficulty should become deeper and more analytical
+- Mixed interviews should naturally alternate HR and technical
+- HR questions should evaluate communication, ownership, teamwork, leadership
+- Technical questions should evaluate depth, optimization, architecture, debugging, scalability
+- Strict Technical Lead should ask tougher follow-ups
+- Senior Engineering Manager should ask ownership/system-design style questions
+- Corporate VP should focus on business impact and decision-making
 
-Format:
+RETURN ONLY RAW VALID JSON.
+
+FORMAT:
 
 {
   "id": "",
@@ -167,17 +262,18 @@ Format:
                 role: "system",
 
                 content:
-                  "You are a senior interviewer.",
+                  "You are a strict senior FAANG interviewer. Return ONLY valid JSON.",
               },
 
               {
                 role: "user",
 
-                content: prompt,
+                content:
+                  prompt,
               },
             ],
 
-            temperature: 0.8,
+            temperature: 0.7,
           }),
         }
       );
@@ -187,46 +283,48 @@ Format:
 
     const text =
       data?.choices?.[0]
-        ?.message?.content ||
-      "";
+        ?.message
+        ?.content || "";
 
-    const cleaned = text
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    console.log(
+      "QUESTION RESPONSE:",
+      text
+    );
+
+    const cleaned =
+      text
+        .replace(
+          /```json/g,
+          ""
+        )
+        .replace(
+          /```/g,
+          ""
+        )
+        .trim();
 
     let generatedQuestion;
 
     try {
       generatedQuestion =
-        JSON.parse(cleaned);
+        JSON.parse(
+          cleaned
+        );
     } catch {
-      generatedQuestion = {
-        id: crypto.randomUUID(),
-
-        question:
-          "Tell me about a technical challenge you recently solved.",
-
-        focusArea:
-          "Problem Solving",
-
-        round,
-
-        expectedSignals:
-          [
-            "communication",
-            "technical depth",
-            "decision making",
-          ],
-      };
+      generatedQuestion =
+        fallbackQuestion(
+          round
+        );
     }
 
     if (
       typeof generatedQuestion.question !==
       "string"
     ) {
-      generatedQuestion.question =
-        "Tell me about a technical challenge you recently solved.";
+      generatedQuestion =
+        fallbackQuestion(
+          round
+        );
     }
 
     return NextResponse.json({
