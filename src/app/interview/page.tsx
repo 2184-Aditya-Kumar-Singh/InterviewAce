@@ -393,7 +393,9 @@ export default function InterviewPage() {
     );
   }
 
-  async function handleCodingSolved() {
+  async function handleCodingSolved(
+  summary?: string
+) {
     setShowCoding(false);
 
     setCodingSolved(true);
