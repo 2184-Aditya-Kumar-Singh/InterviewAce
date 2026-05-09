@@ -20,9 +20,7 @@ type Props = {
 
   onClose: () => void;
 
-  onSolved: (
-    summary?: string
-  ) => void;
+  onSolved: () => void;
 };
 
 export function InterviewCodingModal({
@@ -75,46 +73,39 @@ export function InterviewCodingModal({
     return null;
 
   async function handleSubmit() {
-    setSubmitting(true);
-
     try {
-      const response =
-        await fetch(
-          "/api/code/review",
-          {
-            method: "POST",
+      setSubmitting(true);
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+      await fetch(
+        "/api/code/review",
+        {
+          method: "POST",
 
-            body: JSON.stringify({
-              language:
-                "JavaScript",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-              code,
+          body: JSON.stringify({
+            language:
+              "JavaScript",
 
-              prompt:
-    challenge?.prompt || "",
-            }),
-          }
-        );
+            code,
 
-      const data =
-        await response.json();
-
-      onSolved(
-        JSON.stringify(
-          data.review
-        )
+            prompt:
+              challenge?.prompt ||
+              "",
+          }),
+        }
       );
+
+      onSolved();
 
       onClose();
-    } catch {
-      onSolved(
-        "Coding round completed."
-      );
+    } catch (err) {
+      console.error(err);
+
+      onSolved();
 
       onClose();
     } finally {
@@ -123,24 +114,25 @@ export function InterviewCodingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 p-6 backdrop-blur">
-      <div className="flex h-[92vh] w-full max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90 p-4 backdrop-blur">
+      <div className="flex h-[94vh] w-full max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950">
         {/* LEFT */}
         <div className="w-[42%] overflow-y-auto border-r border-white/10 p-8">
-          <div className="flex items-center justify-between">
+          {/* HEADER */}
+          <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm text-slate-400">
                 Coding Round
               </p>
 
-              <h2 className="mt-2 text-4xl font-black">
+              <h2 className="mt-3 text-4xl font-black leading-tight">
                 {
                   challenge.title
                 }
               </h2>
             </div>
 
-            <div className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+            <div className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300">
               {
                 challenge.difficulty
               }
@@ -148,12 +140,12 @@ export function InterviewCodingModal({
           </div>
 
           {/* TIMER */}
-          <div className="mt-8 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-5">
+          <div className="mt-8 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-6">
             <p className="text-sm text-rose-300">
-              Time Remaining
+              Coding Timer
             </p>
 
-            <h3 className="mt-2 text-5xl font-black text-white">
+            <h2 className="mt-3 text-5xl font-black">
               {Math.floor(
                 secondsLeft / 60
               )}
@@ -161,12 +153,20 @@ export function InterviewCodingModal({
               {String(
                 secondsLeft % 60
               ).padStart(2, "0")}
-            </h3>
+            </h2>
           </div>
 
-          {/* PROMPT */}
-          <div className="mt-8 whitespace-pre-wrap text-lg leading-9 text-slate-200">
-            {challenge.prompt}
+          {/* DESCRIPTION */}
+          <div className="mt-8">
+            <h3 className="text-2xl font-bold">
+              Problem Statement
+            </h3>
+
+            <div className="mt-5 whitespace-pre-wrap text-lg leading-9 text-slate-300">
+              {
+                challenge.prompt
+              }
+            </div>
           </div>
 
           {/* SAMPLE */}
@@ -177,12 +177,12 @@ export function InterviewCodingModal({
                 Sample Test Case
               </h3>
 
-              <div className="mt-5">
+              <div className="mt-6">
                 <p className="font-semibold text-slate-300">
                   Input
                 </p>
 
-                <pre className="mt-2 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
+                <pre className="mt-3 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
                   {
                     challenge
                       .testCases[0]
@@ -191,12 +191,12 @@ export function InterviewCodingModal({
                 </pre>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-6">
                 <p className="font-semibold text-slate-300">
-                  Output
+                  Expected Output
                 </p>
 
-                <pre className="mt-2 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
+                <pre className="mt-3 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
                   {
                     challenge
                       .testCases[0]
@@ -207,37 +207,63 @@ export function InterviewCodingModal({
             </div>
           )}
 
-          {/* HIDDEN */}
+          {/* INFO */}
           <div className="mt-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
             <h3 className="text-xl font-bold">
-              Hidden Test Cases
+              Evaluation
             </h3>
 
-            <p className="mt-3 text-slate-400">
-              5 hidden test cases
-              will be used during
-              evaluation.
-            </p>
+            <ul className="mt-5 space-y-3 text-slate-300">
+              <li>
+                • Hidden test
+                cases will be
+                checked
+              </li>
+
+              <li>
+                • Time complexity
+                matters
+              </li>
+
+              <li>
+                • Edge cases are
+                important
+              </li>
+
+              <li>
+                • Clean readable
+                code is preferred
+              </li>
+
+              <li>
+                • You have 10
+                minutes
+              </li>
+            </ul>
           </div>
         </div>
 
         {/* RIGHT */}
         <div className="flex flex-1 flex-col">
+          {/* TOP BAR */}
           <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
             <div>
-              <h3 className="text-xl font-bold">
-                Code Editor
+              <h3 className="text-2xl font-black">
+                JavaScript Editor
               </h3>
 
-              <p className="text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-400">
                 Write your
+                optimized
                 solution below.
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={onClose}
+                onClick={
+                  onClose
+                }
                 className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-300"
               >
                 Close
@@ -250,7 +276,7 @@ export function InterviewCodingModal({
                 disabled={
                   submitting
                 }
-                className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-bold text-slate-950"
+                className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950"
               >
                 {submitting
                   ? "Submitting..."
@@ -259,6 +285,7 @@ export function InterviewCodingModal({
             </div>
           </div>
 
+          {/* EDITOR */}
           <div className="flex-1">
             <Editor
               height="100%"
@@ -268,6 +295,18 @@ export function InterviewCodingModal({
                 setCode(v || "")
               }
               theme="vs-dark"
+              options={{
+                minimap: {
+                  enabled:
+                    false,
+                },
+
+                fontSize: 16,
+
+                padding: {
+                  top: 18,
+                },
+              }}
             />
           </div>
         </div>
