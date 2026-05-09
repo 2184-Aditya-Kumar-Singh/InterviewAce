@@ -332,17 +332,22 @@ export default function InterviewPage() {
       ...answers,
 
       {
-        question:
-          question.question,
+  questionId:
+    question.id,
 
-        answer,
+  question:
+    question.question,
 
-        round:
-          question.round,
+  answer,
 
-        expectedSignals:
-          question.expectedSignals,
-      },
+  secondsSpent: 0,
+
+  round:
+    question.round,
+
+  expectedSignals:
+    question.expectedSignals,
+},
     ];
 
     setAnswers(nextAnswers);
