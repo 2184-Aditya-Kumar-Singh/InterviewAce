@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  Brain,
+  Briefcase,
+  Crown,
+  FileText,
+  Mic,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
+
 import type {
   Difficulty,
   InterviewPersona,
@@ -94,17 +104,42 @@ export function InterviewSetup({
   analyzing,
 }: Props) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-6">
-      <h2 className="text-4xl font-black">
-        Interview Setup
-      </h2>
+    <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur-xl">
+      {/* HEADER */}
+      <div>
+        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+          <Sparkles
+            size={16}
+          />
+          AI Mock Interview
+        </div>
 
-      <div className="mt-8 space-y-8">
-        {/* Resume */}
-        <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Resume
-          </label>
+        <h2 className="mt-5 text-5xl font-black leading-tight">
+          Interview Setup
+        </h2>
+
+        <p className="mt-4 text-slate-400">
+          Configure your AI
+          interview environment
+          for realistic
+          recruiter-style mock
+          interviews.
+        </p>
+      </div>
+
+      <div className="mt-10 space-y-10">
+        {/* RESUME */}
+        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+          <div className="flex items-center gap-3">
+            <UploadCloud
+              className="text-emerald-300"
+              size={22}
+            />
+
+            <h3 className="text-2xl font-black">
+              Resume Upload
+            </h3>
+          </div>
 
           <input
             type="file"
@@ -115,16 +150,30 @@ export function InterviewSetup({
                   null
               )
             }
-            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-5"
+            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-5"
           />
 
-          {parsedResume && (
-            <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-4">
+          {resumeFile && (
+            <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-4">
               <p className="font-semibold text-emerald-300">
-                Resume Parsed
+                Uploaded:
               </p>
 
-              <p className="mt-2 text-sm text-slate-300">
+              <p className="mt-2 text-slate-300">
+                {
+                  resumeFile.name
+                }
+              </p>
+            </div>
+          )}
+
+          {parsedResume && (
+            <div className="mt-5 rounded-2xl border border-sky-400/10 bg-sky-400/5 p-5">
+              <p className="font-semibold text-sky-300">
+                Resume Summary
+              </p>
+
+              <p className="mt-3 leading-7 text-slate-300">
                 {
                   parsedResume.summary
                 }
@@ -134,10 +183,17 @@ export function InterviewSetup({
         </div>
 
         {/* JD */}
-        <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Job Description
-          </label>
+        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+          <div className="flex items-center gap-3">
+            <FileText
+              className="text-amber-300"
+              size={22}
+            />
+
+            <h3 className="text-2xl font-black">
+              Job Description
+            </h3>
+          </div>
 
           <textarea
             value={jdText}
@@ -147,132 +203,182 @@ export function InterviewSetup({
               )
             }
             rows={10}
-            className="w-full rounded-xl border border-white/10 bg-slate-900 p-4"
-            placeholder="Paste Job Description here..."
+            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 p-5 leading-7"
+            placeholder="Paste the target job description here..."
           />
+
+          <button
+            onClick={onAnalyze}
+            disabled={
+              analyzing
+            }
+            className="mt-5 rounded-2xl bg-emerald-400 px-6 py-4 font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-70"
+          >
+            {analyzing
+              ? "Analyzing JD..."
+              : "Analyze Resume + JD"}
+          </button>
         </div>
 
-        {/* Difficulty */}
+        {/* PLAN */}
         <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Difficulty
-          </label>
+          <h3 className="text-3xl font-black">
+            Select Plan
+          </h3>
 
-          <select
-            value={difficulty}
-            onChange={(e) =>
-              setDifficulty(
-                e.target
-                  .value as Difficulty
-              )
-            }
-            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-4"
-          >
-            <option value="Easy">
-              Easy
-            </option>
+          <div className="mt-6 grid gap-5">
+            <PlanCard
+              title="FREE"
+              active={
+                plan ===
+                "FREE"
+              }
+              icon={
+                <Briefcase
+                  size={24}
+                />
+              }
+              description="Basic text interview with standard AI analysis."
+              features={[
+                "Text-based interview",
+                "Basic report",
+                "Resume matching",
+              ]}
+              onClick={() =>
+                setPlan(
+                  "FREE"
+                )
+              }
+            />
 
-            <option value="Medium">
-              Medium
-            </option>
+            <PlanCard
+              title="PRO"
+              active={
+                plan ===
+                "PRO"
+              }
+              icon={
+                <Mic
+                  size={24}
+                />
+              }
+              description="AI avatar speaks questions while you answer via text."
+              features={[
+                "AI speaking avatar",
+                "Advanced reports",
+                "Better technical analysis",
+              ]}
+              onClick={() =>
+                setPlan(
+                  "PRO"
+                )
+              }
+            />
 
-            <option value="Hard">
-              Hard
-            </option>
-          </select>
-        </div>
-
-        {/* Plan */}
-        <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Plan
-          </label>
-
-          <select
-            value={plan}
-            onChange={(e) =>
-              setPlan(
-                e.target
-                  .value as InterviewPlan
-              )
-            }
-            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-4"
-          >
-            <option value="FREE">
-              FREE
-            </option>
-
-            <option value="PRO">
-              PRO
-            </option>
-
-            <option value="PREMIUM">
-              PREMIUM
-            </option>
-          </select>
-
-          <div className="mt-4 rounded-xl border border-white/10 bg-slate-900/60 p-4 text-sm text-slate-300">
-            {plan === "FREE" && (
-              <p>
-                Text interview +
-                basic report.
-              </p>
-            )}
-
-            {plan === "PRO" && (
-              <p>
-                Voice-to-text +
-                detailed analysis.
-              </p>
-            )}
-
-            {plan ===
-              "PREMIUM" && (
-              <p>
-                Real-time AI voice
-                interview +
-                recruiter-grade
-                report.
-              </p>
-            )}
+            <PlanCard
+              title="PREMIUM"
+              active={
+                plan ===
+                "PREMIUM"
+              }
+              icon={
+                <Crown
+                  size={24}
+                />
+              }
+              description="Realtime voice-based interview simulation."
+              features={[
+                "Realtime AI interview",
+                "Voice answers",
+                "Recruiter-grade evaluation",
+                "Advanced roadmap",
+              ]}
+              onClick={() =>
+                setPlan(
+                  "PREMIUM"
+                )
+              }
+            />
           </div>
         </div>
 
-        {/* Round */}
-        <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Interview Type
-          </label>
+        {/* SETTINGS */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* DIFFICULTY */}
+          <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+            <div className="flex items-center gap-3">
+              <Brain
+                className="text-emerald-300"
+                size={22}
+              />
 
-          <select
-            value={round}
-            onChange={(e) =>
-              setRound(
-                e.target
-                  .value as InterviewRound
-              )
-            }
-            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-4"
-          >
-            <option value="HR">
-              HR
-            </option>
+              <h3 className="text-2xl font-black">
+                Difficulty
+              </h3>
+            </div>
 
-            <option value="Technical">
-              Technical
-            </option>
+            <select
+              value={
+                difficulty
+              }
+              onChange={(e) =>
+                setDifficulty(
+                  e.target
+                    .value as Difficulty
+                )
+              }
+              className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
+            >
+              <option value="Easy">
+                Easy
+              </option>
 
-            <option value="Mixed">
-              Mixed
-            </option>
-          </select>
+              <option value="Medium">
+                Medium
+              </option>
+
+              <option value="Hard">
+                Hard
+              </option>
+            </select>
+          </div>
+
+          {/* ROUND */}
+          <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+            <h3 className="text-2xl font-black">
+              Interview Type
+            </h3>
+
+            <select
+              value={round}
+              onChange={(e) =>
+                setRound(
+                  e.target
+                    .value as InterviewRound
+                )
+              }
+              className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
+            >
+              <option value="HR">
+                HR
+              </option>
+
+              <option value="Technical">
+                Technical
+              </option>
+
+              <option value="Mixed">
+                Mixed
+              </option>
+            </select>
+          </div>
         </div>
 
-        {/* Persona */}
-        <div>
-          <label className="mb-3 block text-xl font-semibold">
-            Interviewer
-          </label>
+        {/* PERSONA */}
+        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+          <h3 className="text-2xl font-black">
+            Interviewer Persona
+          </h3>
 
           <select
             value={persona}
@@ -282,7 +388,7 @@ export function InterviewSetup({
                   .value as InterviewPersona
               )
             }
-            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-4"
+            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
           >
             <option value="Friendly HR">
               Friendly HR
@@ -304,29 +410,93 @@ export function InterviewSetup({
           </select>
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-4">
-          <button
-            onClick={onAnalyze}
-            disabled={analyzing}
-            className="rounded-xl bg-emerald-400 px-6 py-4 font-bold text-slate-950"
-          >
-            {analyzing
-              ? "Analyzing..."
-              : "Analyze JD"}
-          </button>
-
-          <button
-            onClick={onStart}
-            disabled={loading}
-            className="rounded-xl bg-white px-6 py-4 font-bold text-slate-950"
-          >
-            {loading
-              ? "Starting..."
-              : "Start Interview"}
-          </button>
-        </div>
+        {/* START */}
+        <button
+          onClick={onStart}
+          disabled={loading}
+          className="w-full rounded-3xl bg-white px-8 py-5 text-xl font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-70"
+        >
+          {loading
+            ? "Starting Interview..."
+            : "Start AI Interview"}
+        </button>
       </div>
     </div>
+  );
+}
+
+function PlanCard({
+  title,
+
+  description,
+
+  features,
+
+  icon,
+
+  active,
+
+  onClick,
+}: {
+  title: string;
+
+  description: string;
+
+  features: string[];
+
+  icon: React.ReactNode;
+
+  active: boolean;
+
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-3xl border p-6 text-left transition ${
+        active
+          ? "border-emerald-400 bg-emerald-400/5"
+          : "border-white/10 bg-slate-900/50 hover:border-white/20"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="rounded-2xl bg-white/5 p-3 text-emerald-300">
+            {icon}
+          </div>
+
+          <div>
+            <h4 className="text-2xl font-black">
+              {title}
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-400">
+              {
+                description
+              }
+            </p>
+          </div>
+        </div>
+
+        {active && (
+          <div className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950">
+            Selected
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        {features.map(
+          (feature) => (
+            <span
+              key={feature}
+              className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-300"
+            >
+              {feature}
+            </span>
+          )
+        )}
+      </div>
+    </button>
   );
 }
