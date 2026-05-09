@@ -25,7 +25,7 @@ Requirements:
 - Difficulty: ${difficulty}
 - Experience: ${experienceLevel}
 
-Return JSON only in this exact format:
+Return ONLY valid JSON in this format:
 
 {
   "title": "",
@@ -42,11 +42,12 @@ Return JSON only in this exact format:
   "referenceAnswer": ""
 }
 
-The problem should:
-- be unique
-- not be trivial
-- resemble LeetCode/company interviews
-- include realistic constraints
+Rules:
+- Create unique interview-style problem
+- Similar to LeetCode/company OA
+- Include proper constraints
+- Avoid extremely easy questions
+- Do NOT include markdown
 `;
 
     const response =
@@ -69,9 +70,23 @@ The problem should:
     const text =
       response.choices[0].message.content;
 
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text || "{}");
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid AI response",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      question: JSON.parse(text || "{}"),
+      question: parsed,
     });
   } catch (err) {
     console.error(err);
