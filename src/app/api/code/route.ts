@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+
+import {
+  GoogleGenerativeAI,
+} from "@google/generative-ai";
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         {
           success: false,
-          error: "Missing OpenAI API key",
+          error: "Missing Gemini API key",
         },
         { status: 500 }
       );
@@ -22,9 +25,15 @@ export async function POST(req: Request) {
       experienceLevel,
     } = body;
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const genAI =
+      new GoogleGenerativeAI(
+        process.env.GEMINI_API_KEY
+      );
+
+    const model =
+      genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+      });
 
     const prompt = `
 Generate ONE realistic coding interview question.
@@ -66,30 +75,18 @@ Rules:
 - Avoid trivial problems
 `;
 
+    const result =
+      await model.generateContent(prompt);
+
     const response =
-      await client.chat.completions.create({
-        model: "gpt-4o-mini",
+      await result.response;
 
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert coding interview generator.",
-          },
+    const text = response.text();
 
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-
-        temperature: 1,
-      });
-
-    const text =
-      response.choices[0].message.content || "";
-
-    console.log("RAW AI RESPONSE:", text);
+    console.log(
+      "GEMINI RAW RESPONSE:",
+      text
+    );
 
     const cleaned = text
       .replace(/```json/g, "")
@@ -110,7 +107,7 @@ Rules:
         {
           success: false,
           error:
-            "Invalid AI response format",
+            "Invalid Gemini response format",
           raw: cleaned,
         },
         { status: 500 }
@@ -123,7 +120,7 @@ Rules:
     });
   } catch (err: any) {
     console.error(
-      "CODE API ERROR:",
+      "GEMINI API ERROR:",
       err
     );
 
