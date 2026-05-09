@@ -7,6 +7,12 @@ import {
 
 import Editor from "@monaco-editor/react";
 
+import {
+  Clock3,
+  Code2,
+  Terminal,
+} from "lucide-react";
+
 import type {
   CodingChallenge,
 } from "@/lib/types";
@@ -47,6 +53,12 @@ export function InterviewCodingModal({
     if (!open) return;
 
     setSecondsLeft(600);
+
+    setCode(`function solve() {
+
+  // Write your solution here
+
+}`);
 
     const interval =
       setInterval(() => {
@@ -93,8 +105,7 @@ export function InterviewCodingModal({
             code,
 
             prompt:
-              challenge?.prompt ||
-              "",
+              challenge.prompt,
           }),
         }
       );
@@ -114,157 +125,185 @@ export function InterviewCodingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90 p-4 backdrop-blur">
-      <div className="flex h-[94vh] w-full max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950">
-        {/* LEFT */}
-        <div className="w-[42%] overflow-y-auto border-r border-white/10 p-8">
-          {/* HEADER */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-slate-400">
-                Coding Round
-              </p>
+    <div className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-sm">
+      <div className="flex h-screen w-full flex-col overflow-hidden xl:flex-row">
+        {/* LEFT PANEL */}
+        <div className="w-full overflow-y-auto border-b border-white/10 bg-slate-950 xl:w-[42%] xl:border-b-0 xl:border-r">
+          <div className="p-6 sm:p-8">
+            {/* TOP */}
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+                  <Code2
+                    size={16}
+                  />
+                  Coding Round
+                </div>
 
-              <h2 className="mt-3 text-4xl font-black leading-tight">
+                <h1 className="mt-5 text-3xl font-black leading-tight sm:text-4xl">
+                  {
+                    challenge.title
+                  }
+                </h1>
+
+                <p className="mt-3 text-slate-400">
+                  Topic:{" "}
+                  {
+                    challenge.topic
+                  }
+                </p>
+              </div>
+
+              <div className="rounded-full bg-white/5 px-5 py-2 text-sm font-bold text-white">
                 {
-                  challenge.title
+                  challenge.difficulty
                 }
+              </div>
+            </div>
+
+            {/* TIMER */}
+            <div className="mt-8 rounded-3xl border border-rose-400/20 bg-rose-500/10 p-6">
+              <div className="flex items-center gap-3">
+                <Clock3
+                  className="text-rose-300"
+                  size={20}
+                />
+
+                <p className="font-semibold text-rose-200">
+                  Time Remaining
+                </p>
+              </div>
+
+              <h2 className="mt-4 text-5xl font-black">
+                {Math.floor(
+                  secondsLeft / 60
+                )}
+                :
+                {String(
+                  secondsLeft % 60
+                ).padStart(2, "0")}
               </h2>
             </div>
 
-            <div className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300">
-              {
-                challenge.difficulty
-              }
-            </div>
-          </div>
+            {/* DESCRIPTION */}
+            <div className="mt-10">
+              <h2 className="text-2xl font-black">
+                Problem Statement
+              </h2>
 
-          {/* TIMER */}
-          <div className="mt-8 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-6">
-            <p className="text-sm text-rose-300">
-              Coding Timer
-            </p>
-
-            <h2 className="mt-3 text-5xl font-black">
-              {Math.floor(
-                secondsLeft / 60
-              )}
-              :
-              {String(
-                secondsLeft % 60
-              ).padStart(2, "0")}
-            </h2>
-          </div>
-
-          {/* DESCRIPTION */}
-          <div className="mt-8">
-            <h3 className="text-2xl font-bold">
-              Problem Statement
-            </h3>
-
-            <div className="mt-5 whitespace-pre-wrap text-lg leading-9 text-slate-300">
-              {
-                challenge.prompt
-              }
-            </div>
-          </div>
-
-          {/* SAMPLE */}
-          {challenge.testCases
-            ?.length > 0 && (
-            <div className="mt-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
-              <h3 className="text-2xl font-bold">
-                Sample Test Case
-              </h3>
-
-              <div className="mt-6">
-                <p className="font-semibold text-slate-300">
-                  Input
-                </p>
-
-                <pre className="mt-3 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
-                  {
-                    challenge
-                      .testCases[0]
-                      .input
-                  }
-                </pre>
-              </div>
-
-              <div className="mt-6">
-                <p className="font-semibold text-slate-300">
-                  Expected Output
-                </p>
-
-                <pre className="mt-3 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
-                  {
-                    challenge
-                      .testCases[0]
-                      .expectedOutput
-                  }
-                </pre>
+              <div className="mt-5 whitespace-pre-wrap text-base leading-8 text-slate-300 sm:text-lg">
+                {
+                  challenge.prompt
+                }
               </div>
             </div>
-          )}
 
-          {/* INFO */}
-          <div className="mt-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
-            <h3 className="text-xl font-bold">
-              Evaluation
-            </h3>
+            {/* SAMPLE */}
+            {challenge
+              .testCases?.[0] && (
+              <div className="mt-10 rounded-3xl border border-white/10 bg-slate-900/70 p-6">
+                <div className="flex items-center gap-3">
+                  <Terminal
+                    size={20}
+                    className="text-emerald-300"
+                  />
 
-            <ul className="mt-5 space-y-3 text-slate-300">
-              <li>
-                • Hidden test
-                cases will be
-                checked
-              </li>
+                  <h2 className="text-2xl font-black">
+                    Sample Example
+                  </h2>
+                </div>
 
-              <li>
-                • Time complexity
-                matters
-              </li>
+                <div className="mt-6">
+                  <p className="font-semibold text-slate-300">
+                    Input
+                  </p>
 
-              <li>
-                • Edge cases are
-                important
-              </li>
+                  <pre className="mt-3 overflow-auto rounded-2xl bg-black p-5 text-sm text-emerald-300">
+                    {
+                      challenge
+                        .testCases[0]
+                        .input
+                    }
+                  </pre>
+                </div>
 
-              <li>
-                • Clean readable
-                code is preferred
-              </li>
+                <div className="mt-6">
+                  <p className="font-semibold text-slate-300">
+                    Output
+                  </p>
 
-              <li>
-                • You have 10
-                minutes
-              </li>
-            </ul>
+                  <pre className="mt-3 overflow-auto rounded-2xl bg-black p-5 text-sm text-emerald-300">
+                    {
+                      challenge
+                        .testCases[0]
+                        .expectedOutput
+                    }
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* CONSTRAINTS */}
+            <div className="mt-10 rounded-3xl border border-white/10 bg-slate-900/70 p-6">
+              <h2 className="text-2xl font-black">
+                Evaluation Criteria
+              </h2>
+
+              <ul className="mt-5 space-y-4 text-slate-300">
+                <li>
+                  • Hidden test
+                  cases will be
+                  evaluated
+                </li>
+
+                <li>
+                  • Time &
+                  space complexity
+                  matter
+                </li>
+
+                <li>
+                  • Edge cases
+                  should be handled
+                </li>
+
+                <li>
+                  • Clean readable
+                  code is preferred
+                </li>
+
+                <li>
+                  • Use optimized
+                  approaches where
+                  possible
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex flex-1 flex-col">
+        {/* RIGHT PANEL */}
+        <div className="flex flex-1 flex-col bg-[#0d1117]">
           {/* TOP BAR */}
-          <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
             <div>
-              <h3 className="text-2xl font-black">
+              <h2 className="text-2xl font-black">
                 JavaScript Editor
-              </h3>
+              </h2>
 
               <p className="mt-1 text-sm text-slate-400">
                 Write your
                 optimized
-                solution below.
+                solution below
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={
                   onClose
                 }
-                className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-300"
+                className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
               >
                 Close
               </button>
@@ -276,7 +315,7 @@ export function InterviewCodingModal({
                 disabled={
                   submitting
                 }
-                className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950"
+                className="rounded-2xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-70"
               >
                 {submitting
                   ? "Submitting..."
@@ -286,7 +325,7 @@ export function InterviewCodingModal({
           </div>
 
           {/* EDITOR */}
-          <div className="flex-1">
+          <div className="flex-1 overflow-hidden">
             <Editor
               height="100%"
               defaultLanguage="javascript"
@@ -304,8 +343,19 @@ export function InterviewCodingModal({
                 fontSize: 16,
 
                 padding: {
-                  top: 18,
+                  top: 20,
                 },
+
+                lineHeight: 28,
+
+                scrollBeyondLastLine:
+                  false,
+
+                roundedSelection:
+                  true,
+
+                automaticLayout:
+                  true,
               }}
             />
           </div>
