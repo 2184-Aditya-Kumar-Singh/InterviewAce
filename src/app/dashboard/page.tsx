@@ -19,26 +19,44 @@ type DashboardStats = {
 };
 
 export default function DashboardPage() {
-  const [currentPlan] = useState<InterviewPlan>(() => {
-    if (typeof window === "undefined") return "FREE";
+  const [currentPlan, setCurrentPlan] =
+    useState<InterviewPlan>("FREE");
 
-    const saved = window.localStorage.getItem(
-      "interviewace:plan"
-    ) as InterviewPlan | null;
-
-    return saved === "FREE" ||
-      saved === "PRO" ||
-      saved === "PREMIUM"
-      ? saved
-      : "FREE";
-  });
-
-  const [stats, setStats] = useState<DashboardStats>({
-    interviewsTaken: 0,
-    latestScore: 0,
-  });
+  const [stats, setStats] =
+    useState<DashboardStats>({
+      interviewsTaken: 0,
+      latestScore: 0,
+    });
 
   useEffect(() => {
+    async function loadPlan() {
+      try {
+        if (!supabase) return;
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        const { data } = await supabase
+          .from("users")
+          .select("plan")
+          .eq("id", user.id)
+          .single();
+
+        if (
+          data?.plan === "FREE" ||
+          data?.plan === "PRO" ||
+          data?.plan === "PREMIUM"
+        ) {
+          setCurrentPlan(data.plan);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     async function loadStats() {
       try {
         if (!supabase) return;
@@ -49,17 +67,21 @@ export default function DashboardPage() {
 
         if (!user) return;
 
-        const reportsKey = `interviewace:reports:${user.id}`;
+        const reportsKey =
+          `interviewace:reports:${user.id}`;
 
         const reports = JSON.parse(
-          window.localStorage.getItem(reportsKey) || "[]"
+          window.localStorage.getItem(
+            reportsKey
+          ) || "[]"
         );
 
-        const interviewsTaken = reports.length;
+        const interviewsTaken =
+          reports.length;
 
         const latestScore =
           reports.length > 0
-            ? reports[reports.length - 1]?.report
+            ? reports[0]?.report
                 ?.overallScore || 0
             : 0;
 
@@ -72,6 +94,7 @@ export default function DashboardPage() {
       }
     }
 
+    loadPlan();
     loadStats();
   }, []);
 
@@ -82,7 +105,8 @@ export default function DashboardPage() {
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-6 sm:flex-row sm:items-center">
             <div>
               <p className="text-sm text-emerald-200">
-                Current plan: {plans[currentPlan].name}
+                Current plan:{" "}
+                {plans[currentPlan].name}
               </p>
 
               <h1 className="mt-2 text-3xl font-semibold">
@@ -90,9 +114,9 @@ export default function DashboardPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                Upload your resume, paste a job
-                description, and run one focused free
-                interview every day.
+                Upload your resume, paste a
+                job description, and run AI
+                mock interviews.
               </p>
             </div>
 
@@ -103,43 +127,33 @@ export default function DashboardPage() {
               Start interview
               <ArrowRight size={18} />
             </Link>
-
-            <Link
-              href="/reports"
-              className="focus-ring inline-flex items-center justify-center rounded-lg border border-white/10 px-5 py-3 font-semibold text-white"
-            >
-              View reports
-            </Link>
-
-            <Link
-              href="/subscription"
-              className="focus-ring inline-flex items-center justify-center rounded-lg border border-emerald-300/30 px-5 py-3 font-semibold text-emerald-100"
-            >
-              Manage subscription
-            </Link>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <MetricCard
               label="Interviews taken"
-              value={String(stats.interviewsTaken)}
-              detail="Your completed interview sessions."
+              value={String(
+                stats.interviewsTaken
+              )}
+              detail="Completed sessions."
             />
 
             <MetricCard
               label="Latest score"
               value={
                 stats.latestScore
-                  ? String(stats.latestScore)
+                  ? String(
+                      stats.latestScore
+                    )
                   : "--"
               }
-              detail="Most recent interview performance."
+              detail="Latest interview score."
             />
 
             <MetricCard
-              label="Daily free limit"
-              value="1 / day"
-              detail="Free plan interview limit."
+              label="Current plan"
+              value={currentPlan}
+              detail="Your active subscription."
             />
           </div>
 
@@ -154,9 +168,8 @@ export default function DashboardPage() {
               </div>
 
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Upload your resume and start
-                AI-powered interview practice tailored
-                to your target role.
+                Upload resume and start
+                personalized AI interviews.
               </p>
 
               <Link
@@ -168,27 +181,30 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-4">
-              {(["PRO", "PREMIUM"] as const).map(
-                (key) => (
-                  <div
-                    key={key}
-                    className="rounded-lg border border-white/10 bg-white/[0.04] p-5"
-                  >
-                    <p className="text-sm text-slate-400">
-                      Upgrade
-                    </p>
+              {(
+                ["PRO", "PREMIUM"] as const
+              ).map((key) => (
+                <div
+                  key={key}
+                  className="rounded-lg border border-white/10 bg-white/[0.04] p-5"
+                >
+                  <p className="text-sm text-slate-400">
+                    Upgrade
+                  </p>
 
-                    <h3 className="mt-1 text-lg font-semibold">
-                      {plans[key].name} -{" "}
-                      {plans[key].price}
-                    </h3>
+                  <h3 className="mt-1 text-lg font-semibold">
+                    {plans[key].name} -{" "}
+                    {plans[key].price}
+                  </h3>
 
-                    <p className="mt-2 text-sm text-slate-300">
-                      {plans[key].description}
-                    </p>
-                  </div>
-                )
-              )}
+                  <p className="mt-2 text-sm text-slate-300">
+                    {
+                      plans[key]
+                        .description
+                    }
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
