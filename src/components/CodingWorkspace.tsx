@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+
 import {
-  CheckCircle2,
   Play,
   Send,
-  Terminal,
   Timer,
+  RefreshCw,
+  CheckCircle2,
   XCircle,
 } from "lucide-react";
 
@@ -25,21 +26,22 @@ const Monaco = dynamic(
   { ssr: false }
 );
 
-const starters: Record<string, string> = {
-  Python:
-    "import sys\n\n# Read from stdin and print only the required answer.\n\nprint('')",
+const starters: Record<string, string> =
+  {
+    Python:
+      "import sys\n\n# Read input and print output\n\nprint('')",
 
-  JavaScript:
-    "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf8').trim().split(/\\s+/);\n\nconsole.log('');",
+    JavaScript:
+      "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf8');\n\nconsole.log('');",
 
-  Java:
-    'import java.util.*;\n\npublic class Main {\n  public static void main(String[] args) {\n    Scanner sc = new Scanner(System.in);\n    System.out.println("");\n  }\n}',
+    Java:
+      'import java.util.*;\n\npublic class Main {\n  public static void main(String[] args) {\n    Scanner sc = new Scanner(System.in);\n    System.out.println("");\n  }\n}',
 
-  "C++":
-    '#include <bits/stdc++.h>\nusing namespace std;\nint main(){\n  ios::sync_with_stdio(false);\n  cin.tie(nullptr);\n  cout << "";\n  return 0;\n}',
+    "C++":
+      '#include <bits/stdc++.h>\nusing namespace std;\n\nint main(){\n  ios::sync_with_stdio(false);\n  cin.tie(nullptr);\n\n  cout << "";\n\n  return 0;\n}',
 
-  C: '#include <stdio.h>\nint main(){\n  printf("");\n  return 0;\n}',
-};
+    C: '#include <stdio.h>\n\nint main(){\n  printf("");\n  return 0;\n}',
+  };
 
 type TestResult = {
   input: string;
@@ -56,25 +58,21 @@ export function CodingWorkspace({
   onInterviewSubmit,
 }: {
   initialResume?: ParsedResume;
+
   initialJd?: JDAnalysis | null;
+
   initialDifficulty?: Difficulty;
+
   interviewMode?: boolean;
-  onInterviewSubmit?: (summary: string) => void;
+
+  onInterviewSubmit?: (
+    summary: string
+  ) => void;
 }) {
-  const [resumeText, setResumeText] =
-    useState(initialResume?.summary || "");
-
-  const [jdText, setJdText] =
-    useState(initialJd?.summary || "");
-
-  const [experienceLevel, setExperienceLevel] =
-    useState("student/fresher");
-
-  const [difficulty, setDifficulty] =
-    useState<Difficulty>(initialDifficulty);
-
   const [challenge, setChallenge] =
-    useState<CodingChallenge | null>(null);
+    useState<CodingChallenge | null>(
+      null
+    );
 
   const [language, setLanguage] =
     useState("Python");
@@ -84,14 +82,11 @@ export function CodingWorkspace({
 
   const [output, setOutput] =
     useState(
-      "Run test cases to see output here."
+      "Run code to see output."
     );
 
   const [results, setResults] =
     useState<TestResult[]>([]);
-
-  const [review, setReview] =
-    useState("");
 
   const [running, setRunning] =
     useState(false);
@@ -102,42 +97,64 @@ export function CodingWorkspace({
   const [secondsLeft, setSecondsLeft] =
     useState(0);
 
+  const [loadingQuestion, setLoadingQuestion] =
+    useState(false);
+
   useEffect(() => {
-    async function loadChallenge() {
+    loadChallenge();
+  }, []);
+
+  async function loadChallenge() {
+    setLoadingQuestion(true);
+
+    try {
       const generatedChallenge =
         await createCodingChallenge({
           resume: initialResume,
+
           jd: initialJd,
-          difficulty: initialDifficulty,
+
+          difficulty:
+            initialDifficulty,
+
           interviewMode,
         });
 
-      setChallenge(generatedChallenge);
+      setChallenge(
+        generatedChallenge
+      );
 
       setSecondsLeft(
         generatedChallenge.timeLimitSeconds
       );
+    } finally {
+      setLoadingQuestion(false);
     }
-
-    loadChallenge();
-  }, []);
+  }
 
   useEffect(() => {
     if (!challenge) return;
 
-    if (submitted || secondsLeft <= 0)
+    if (
+      submitted ||
+      secondsLeft <= 0
+    )
       return;
 
-    const timer = window.setInterval(
-      () =>
+    const timer =
+      window.setInterval(() => {
         setSecondsLeft((current) =>
           Math.max(0, current - 1)
-        ),
-      1000
-    );
+        );
+      }, 1000);
 
-    return () => window.clearInterval(timer);
-  }, [secondsLeft, submitted, challenge]);
+    return () =>
+      window.clearInterval(timer);
+  }, [
+    secondsLeft,
+    submitted,
+    challenge,
+  ]);
 
   const timerLabel = useMemo(
     () =>
@@ -149,144 +166,51 @@ export function CodingWorkspace({
     [secondsLeft]
   );
 
-  async function generateChallenge() {
-    const resume: ParsedResume = {
-      rawText: resumeText,
-      summary: resumeText,
+  async function generateNewQuestion() {
+    await loadChallenge();
 
-      skills:
-        resumeText
-          .toLowerCase()
-          .match(
-            /python|javascript|java|c\+\+|sql|dbms|react|api|data structures|algorithms|operating systems/g
-          ) || [],
+    setResults([]);
 
-      education: [],
-
-      projects: resumeText
-        ? [resumeText]
-        : [],
-    };
-
-    const jd: JDAnalysis | null = jdText
-      ? {
-          role: "Coding practice role",
-
-          summary: jdText,
-
-          requiredSkills:
-            jdText
-              .toLowerCase()
-              .match(
-                /python|javascript|java|c\+\+|sql|dbms|react|api|data structures|algorithms|operating systems/g
-              ) || [],
-
-          missingSkills: [],
-
-          matchPercent: 0,
-        }
-      : initialJd || null;
-
-    const nextChallenge =
-      await createCodingChallenge({
-        resume,
-        jd,
-        difficulty,
-        experienceLevel,
-        interviewMode,
-      });
-
-    setNextChallenge(nextChallenge);
-  }
-
-  function setNextChallenge(
-    nextChallenge: CodingChallenge
-  ) {
-    setChallenge(nextChallenge);
-
-    setSecondsLeft(
-      nextChallenge.timeLimitSeconds
+    setOutput(
+      "Run code to see output."
     );
 
     setSubmitted(false);
 
-    setResults([]);
-
-    setReview("");
-
-    setOutput(
-      "Run test cases to see output here."
-    );
+    setCode(starters[language]);
   }
 
-  async function parseResumeFile(file: File) {
-    const form = new FormData();
+  async function runOne(
+    stdin: string
+  ) {
+    const response =
+      await fetch(
+        "/api/code/run",
+        {
+          method: "POST",
 
-    form.append("file", file);
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-    const response = await fetch(
-      "/api/resume/parse",
-      {
-        method: "POST",
-        body: form,
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      setOutput(
-        data.error ||
-          "Could not parse resume."
+          body: JSON.stringify({
+            language,
+            code,
+            stdin,
+          }),
+        }
       );
 
-      return;
-    }
+    const data =
+      await response.json();
 
-    setResumeText(
-      data.resume.summary ||
-        data.resume.rawText ||
-        ""
-    );
-
-    const nextChallenge =
-      await createCodingChallenge({
-        resume: data.resume,
-        jd: initialJd,
-        difficulty,
-        experienceLevel,
-        interviewMode,
-      });
-
-    setNextChallenge(nextChallenge);
-  }
-
-  async function runOne(stdin: string) {
-    const response = await fetch(
-      "/api/code/run",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          language,
-          code,
-          stdin,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok)
+    if (!response.ok) {
       return (
         data.error ||
         "Execution failed."
       );
+    }
 
     return String(
       data.run?.stdout ||
@@ -295,84 +219,34 @@ export function CodingWorkspace({
     ).trim();
   }
 
-  if (!challenge) {
-    return (
-      <div className="p-6 text-white">
-        Loading coding challenge...
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 text-white">
-      <div className="mb-4 flex items-center gap-3">
-        <Timer size={18} />
-
-        <span>{timerLabel}</span>
-      </div>
-
-      <h1 className="text-2xl font-bold">
-        {challenge.title}
-      </h1>
-
-      <p className="mt-2 text-slate-300">
-        {challenge.prompt}
-      </p>
-
-      <div className="mt-6">
-        <Monaco
-          height="400px"
-          language={
-            language === "C++"
-              ? "cpp"
-              : language.toLowerCase()
-          }
-          theme="vs-dark"
-          value={code}
-          onChange={(value) =>
-            setCode(value || "")
-          }
-        />
-      </div>
-
-      <div className="mt-4 flex gap-3">
-        <button
-          onClick={() => runTests(false)}
-          disabled={running}
-          className="rounded-lg border border-white/10 px-4 py-2"
-        >
-          <Play size={16} />
-        </button>
-
-        <button
-          onClick={() => runTests(true)}
-          disabled={running || submitted}
-          className="rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950"
-        >
-          <Send size={16} />
-        </button>
-      </div>
-
-      <pre className="mt-4 whitespace-pre-wrap rounded-lg bg-black p-4">
-        {output}
-      </pre>
-    </div>
-  );
-
   async function runTests(
     markSubmitted = false
   ) {
-    setRunning(true);
-  if (!challenge) return;
-    try {
-      const nextResults: TestResult[] = [];
+    if (!challenge) return;
 
-      for (const testCase of challenge.testCases) {
+    setRunning(true);
+
+    try {
+      const visibleCases =
+        markSubmitted
+          ? challenge.testCases
+          : challenge.testCases.slice(
+              0,
+              2
+            );
+
+      const nextResults: TestResult[] =
+        [];
+
+      for (const testCase of visibleCases) {
         const actualOutput =
-          await runOne(testCase.input);
+          await runOne(
+            testCase.input
+          );
 
         nextResults.push({
           ...testCase,
+
           actualOutput,
 
           passed:
@@ -383,9 +257,10 @@ export function CodingWorkspace({
 
       setResults(nextResults);
 
-      const passed = nextResults.filter(
-        (item) => item.passed
-      ).length;
+      const passed =
+        nextResults.filter(
+          (item) => item.passed
+        ).length;
 
       setOutput(
         `${passed}/${nextResults.length} test cases passed.`
@@ -397,7 +272,8 @@ export function CodingWorkspace({
         if (
           interviewMode &&
           onInterviewSubmit &&
-          passed === nextResults.length
+          passed ===
+            nextResults.length
         ) {
           onInterviewSubmit(
             `${challenge.title} solved successfully`
@@ -412,4 +288,291 @@ export function CodingWorkspace({
       setRunning(false);
     }
   }
+
+  if (!challenge) {
+    return (
+      <div className="p-6 text-white">
+        Loading coding challenge...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] p-6 text-white">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Timer size={18} />
+
+          <span className="text-lg font-semibold">
+            {timerLabel}
+          </span>
+        </div>
+
+        <button
+          onClick={
+            generateNewQuestion
+          }
+          disabled={loadingQuestion}
+          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-black hover:bg-emerald-400"
+        >
+          <RefreshCw size={16} />
+
+          {loadingQuestion
+            ? "Generating..."
+            : "Generate Question"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* LEFT */}
+        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
+          <h1 className="text-3xl font-bold">
+            {challenge.title}
+          </h1>
+
+          <p className="mt-4 text-lg leading-8 text-slate-300">
+            {challenge.prompt}
+          </p>
+
+          {/* Examples */}
+          <div className="mt-8">
+            <h2 className="mb-4 text-xl font-semibold">
+              Examples
+            </h2>
+
+            <div className="space-y-4">
+              {challenge.testCases
+                .slice(0, 2)
+                .map(
+                  (
+                    testCase,
+                    index
+                  ) => (
+                    <div
+                      key={index}
+                      className="rounded-xl bg-slate-950 p-4"
+                    >
+                      <p className="mb-2 font-semibold text-emerald-400">
+                        Example{" "}
+                        {index + 1}
+                      </p>
+
+                      <div className="space-y-3 text-sm">
+                        <div>
+                          <p className="font-semibold">
+                            Input
+                          </p>
+
+                          <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
+{testCase.input}
+                          </pre>
+                        </div>
+
+                        <div>
+                          <p className="font-semibold">
+                            Output
+                          </p>
+
+                          <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
+{testCase.expectedOutput}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+            </div>
+          </div>
+
+          {/* Constraints */}
+          <div className="mt-8 rounded-xl bg-slate-950 p-4">
+            <h2 className="mb-3 text-lg font-semibold">
+              Constraints
+            </h2>
+
+            <ul className="list-disc space-y-2 pl-5 text-slate-300">
+              <li>
+                1 ≤ n ≤ 100000
+              </li>
+
+              <li>
+                Optimize time
+                complexity where
+                possible
+              </li>
+
+              <li>
+                Handle edge cases
+              </li>
+
+              <li>
+                Expected interview-style
+                solution
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <select
+              value={language}
+              onChange={(e) => {
+                setLanguage(
+                  e.target.value
+                );
+
+                setCode(
+                  starters[
+                    e.target.value
+                  ]
+                );
+              }}
+              className="rounded-lg bg-slate-800 px-3 py-2"
+            >
+              {Object.keys(
+                starters
+              ).map((lang) => (
+                <option
+                  key={lang}
+                >
+                  {lang}
+                </option>
+              ))}
+            </select>
+
+            <div className="rounded-xl bg-slate-800 px-3 py-2 text-sm">
+              Status:
+              <span className="ml-2 font-semibold text-emerald-400">
+                Ready
+              </span>
+            </div>
+          </div>
+
+          <Monaco
+            height="500px"
+            language={
+              language === "C++"
+                ? "cpp"
+                : language.toLowerCase()
+            }
+            theme="vs-dark"
+            value={code}
+            onChange={(value) =>
+              setCode(
+                value || ""
+              )
+            }
+          />
+
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() =>
+                runTests(false)
+              }
+              disabled={running}
+              className="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3"
+            >
+              <Play size={16} />
+              Run Code
+            </button>
+
+            <button
+              onClick={() =>
+                runTests(true)
+              }
+              disabled={
+                running ||
+                submitted
+              }
+              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-black hover:bg-emerald-400"
+            >
+              <Send size={16} />
+              Submit
+            </button>
+          </div>
+
+          {/* Results */}
+          <div className="mt-6 rounded-xl bg-black/40 p-4">
+            <p className="mb-3 font-semibold">
+              Console Output
+            </p>
+
+            <pre className="whitespace-pre-wrap text-sm text-slate-300">
+              {output}
+            </pre>
+          </div>
+
+          {/* Visible Cases */}
+          {results.length > 0 && (
+            <div className="mt-6 space-y-4">
+              {results.map(
+                (
+                  result,
+                  index
+                ) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-white/10 bg-slate-950 p-4"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      {result.passed ? (
+                        <CheckCircle2
+                          className="text-emerald-400"
+                          size={18}
+                        />
+                      ) : (
+                        <XCircle
+                          className="text-red-400"
+                          size={18}
+                        />
+                      )}
+
+                      <span className="font-semibold">
+                        Test Case{" "}
+                        {index + 1}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="font-semibold">
+                          Input
+                        </p>
+
+                        <pre className="rounded bg-black/40 p-2">
+{result.input}
+                        </pre>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold">
+                          Expected
+                        </p>
+
+                        <pre className="rounded bg-black/40 p-2">
+{result.expectedOutput}
+                        </pre>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold">
+                          Your Output
+                        </p>
+
+                        <pre className="rounded bg-black/40 p-2">
+{result.actualOutput}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
