@@ -24,9 +24,7 @@ const planRank: Record<InterviewPlan, number> = { FREE: 0, PRO: 1, PREMIUM: 2 };
 const planDuration: Record<InterviewPlan, number> = { FREE: 600, PRO: 1800, PREMIUM: 1800 };
 
 function getSavedPlan(): InterviewPlan {
-  if (typeof window === "undefined") return "FREE";
-  const saved = window.localStorage.getItem("interviewace:plan") as InterviewPlan | null;
-  return saved === "FREE" || saved === "PRO" || saved === "PREMIUM" ? saved : "FREE";
+  return "FREE";
 }
 
 type SpeechRecognitionLike = {
