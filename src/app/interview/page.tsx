@@ -1,5 +1,5 @@
 "use client";
-
+import { supabase } from "@/lib/supabase";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Code2, Mic, MicOff } from "lucide-react";
@@ -232,9 +232,30 @@ export default function InterviewPage() {
       role: jd?.role || "Mock interview",
       createdAt: new Date().toISOString(),
     };
-    window.sessionStorage.setItem("interviewace:last-report", JSON.stringify(storedReport));
-    const history = JSON.parse(window.localStorage.getItem("interviewace:reports") || "[]") as typeof storedReport[];
-    window.localStorage.setItem("interviewace:reports", JSON.stringify([storedReport, ...history].slice(0, 25)));
+    const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+if (user) {
+  const reportsKey = `interviewace:reports:${user.id}`;
+  const lastReportKey = `interviewace:last-report:${user.id}`;
+
+  window.sessionStorage.setItem(
+    lastReportKey,
+    JSON.stringify(storedReport)
+  );
+
+  const history = JSON.parse(
+    window.localStorage.getItem(reportsKey) || "[]"
+  ) as typeof storedReport[];
+
+  window.localStorage.setItem(
+    reportsKey,
+    JSON.stringify(
+      [storedReport, ...history].slice(0, 25)
+    )
+  );
+}
     setLoading("");
     window.speechSynthesis?.cancel();
     router.push("/reports");
