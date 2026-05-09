@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   Mic,
   Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import type {
@@ -21,7 +22,7 @@ const personaMeta: Record<
 > = {
   "Friendly HR": {
     subtitle:
-      "Friendly behavioral interviewer",
+      "Behavioral & communication interviewer",
 
     badge: "HR",
   },
@@ -29,7 +30,7 @@ const personaMeta: Record<
   "Strict Technical Lead":
     {
       subtitle:
-        "Deep technical interviewer",
+        "Deep technical evaluation",
 
       badge: "TL",
     },
@@ -37,14 +38,14 @@ const personaMeta: Record<
   "Senior Engineering Manager":
     {
       subtitle:
-        "Engineering leadership interviewer",
+        "Leadership & engineering evaluation",
 
       badge: "EM",
     },
 
   "Corporate VP": {
     subtitle:
-      "Executive business interviewer",
+      "Executive-level business evaluation",
 
     badge: "VP",
   },
@@ -61,6 +62,8 @@ export function InterviewerAvatar({
 
   onToggleTts,
 
+  onStartListening,
+
   variant = "compact",
 }: {
   persona: InterviewPersona;
@@ -73,29 +76,34 @@ export function InterviewerAvatar({
 
   onToggleTts: () => void;
 
+  onStartListening?: () => void;
+
   variant?: "compact" | "call";
 }) {
   const meta =
     personaMeta[persona];
 
+  const premiumMode =
+    variant === "call";
+
   return (
     <div
       className={`overflow-hidden rounded-3xl border border-white/10 ${
-        variant === "call"
+        premiumMode
           ? "bg-black"
           : "bg-slate-950/70"
       }`}
     >
-      {/* VIDEO AREA */}
-      <div className="relative flex min-h-[420px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,#164e63_0,#020617_70%)]">
+      {/* VIDEO SECTION */}
+      <div className="relative flex min-h-[430px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,#164e63_0,#020617_70%)]">
         {/* STATUS */}
-        <div className="absolute left-5 top-5 z-20 flex items-center gap-2 rounded-full bg-black/50 px-4 py-2 text-sm text-white backdrop-blur">
+        <div className="absolute left-5 top-5 z-20 flex items-center gap-3 rounded-full bg-black/60 px-5 py-2 text-sm text-white backdrop-blur-xl">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
+            className={`h-3 w-3 rounded-full ${
               speaking
-                ? "bg-emerald-400"
+                ? "animate-pulse bg-emerald-400"
                 : listening
-                ? "bg-sky-400"
+                ? "animate-pulse bg-sky-400"
                 : "bg-slate-500"
             }`}
           />
@@ -103,15 +111,15 @@ export function InterviewerAvatar({
           {speaking
             ? "AI Speaking"
             : listening
-            ? "Listening"
+            ? "Listening..."
             : "Ready"}
         </div>
 
         {/* AVATAR */}
         <div
-          className={`relative h-72 w-72 overflow-hidden rounded-full border border-white/10 bg-slate-900 shadow-2xl transition-all duration-300 ${
+          className={`relative h-72 w-72 overflow-hidden rounded-full border border-white/10 bg-slate-900 shadow-[0_0_120px_rgba(16,185,129,0.15)] transition-all duration-300 ${
             speaking
-              ? "scale-[1.03]"
+              ? "scale-[1.04]"
               : ""
           }`}
         >
@@ -127,37 +135,67 @@ export function InterviewerAvatar({
             }`}
           />
 
-          {/* SPEAKING EFFECT */}
+          {/* GLOW */}
           {speaking && (
             <>
-              <div className="absolute inset-0 animate-ping rounded-full border border-emerald-300/40" />
+              <div className="absolute inset-0 animate-ping rounded-full border border-emerald-300/30" />
 
-              <div className="absolute inset-0 rounded-full ring-4 ring-emerald-400/30" />
+              <div className="absolute inset-0 rounded-full ring-4 ring-emerald-400/20" />
             </>
           )}
         </div>
 
-        {/* VOICE BUTTON */}
-        <button
-          onClick={
-            onToggleTts
-          }
-          className="absolute bottom-6 right-6 grid h-14 w-14 place-items-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
-        >
-          {ttsEnabled ? (
-            <Volume2
-              size={22}
-            />
-          ) : (
-            <Mic size={22} />
+        {/* CONTROLS */}
+        <div className="absolute bottom-6 flex items-center gap-4">
+          {/* SPEAKER BUTTON */}
+          <button
+            onClick={
+              onToggleTts
+            }
+            className="grid h-14 w-14 place-items-center rounded-full bg-white text-slate-950 shadow-lg transition hover:scale-105"
+          >
+            {ttsEnabled ? (
+              <Volume2
+                size={22}
+              />
+            ) : (
+              <VolumeX
+                size={22}
+              />
+            )}
+          </button>
+
+          {/* MIC ONLY PREMIUM */}
+          {premiumMode && (
+            <button
+              onClick={
+                onStartListening
+              }
+              className={`grid h-16 w-16 place-items-center rounded-full text-white shadow-2xl transition ${
+                listening
+                  ? "animate-pulse bg-emerald-500"
+                  : "bg-sky-500 hover:scale-105"
+              }`}
+            >
+              <Mic
+                size={28}
+              />
+            </button>
           )}
-        </button>
+        </div>
+
+        {/* PREMIUM LABEL */}
+        {premiumMode && (
+          <div className="absolute right-5 top-5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+            Premium Live Interview
+          </div>
+        )}
       </div>
 
-      {/* INFO */}
+      {/* FOOTER */}
       <div className="border-t border-white/10 p-6">
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-emerald-400 px-3 py-1 text-sm font-black text-slate-950">
+        <div className="flex items-center gap-4">
+          <span className="rounded-full bg-emerald-400 px-4 py-1.5 text-sm font-black text-slate-950">
             {meta.badge}
           </span>
 
@@ -166,7 +204,7 @@ export function InterviewerAvatar({
               {persona}
             </h2>
 
-            <p className="text-sm text-slate-400">
+            <p className="mt-1 text-sm text-slate-400">
               {
                 meta.subtitle
               }
