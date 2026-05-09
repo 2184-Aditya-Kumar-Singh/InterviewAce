@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
 
-import {
-  GoogleGenerativeAI,
-} from "@google/generative-ai";
-
 export async function POST(
   req: Request
 ) {
@@ -23,31 +19,20 @@ export async function POST(
     } = body;
 
     if (
-      !process.env.GEMINI_API_KEY
+      !process.env.GROQ_API_KEY
     ) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Missing Gemini API key",
+            "Missing GROQ API key",
         },
         { status: 500 }
       );
     }
 
-    const genAI =
-      new GoogleGenerativeAI(
-        process.env.GEMINI_API_KEY
-      );
-
-    const model =
-      genAI.getGenerativeModel({
-        model:
-          "gemini-1.5-flash",
-      });
-
     const prompt = `
-You are conducting a professional mock interview.
+You are conducting a realistic professional mock interview.
 
 Interview Type:
 ${round}
@@ -71,15 +56,15 @@ ${resume?.projects?.join(
   ", "
 )}
 
-Job Role:
+Target Role:
 ${jd?.role || ""}
 
-JD Required Skills:
+Required Skills:
 ${jd?.requiredSkills?.join(
   ", "
 )}
 
-Target Topic:
+Current Focus Topic:
 ${topic}
 
 Difficulty:
@@ -88,17 +73,17 @@ ${difficulty}
 Previously Asked Questions:
 ${asked?.join("\n")}
 
-Instructions:
+Rules:
 
-- Ask ONLY ONE interview question
-- Make question realistic
-- Question should match resume and JD
+- Ask ONLY ONE question
+- Make it realistic
+- Match JD and Resume
 - Technical questions should feel company-level
-- HR questions should feel realistic
-- Avoid repeating old questions
-- Mixed round can combine behavioral + technical
-- If candidate appears strong, ask deeper follow-up
-- Keep question concise but professional
+- HR questions should feel recruiter-level
+- Avoid repeating previous questions
+- Keep it concise
+- If candidate appears strong ask deeper follow-up
+- If interview type is Mixed then alternate HR and Technical naturally
 
 Return ONLY RAW JSON.
 
@@ -112,16 +97,50 @@ Format:
 }
 `;
 
-    const result =
-      await model.generateContent(
-        prompt
+    const response =
+      await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+
+          headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            model:
+              "llama-3.3-70b-versatile",
+
+            messages: [
+              {
+                role: "system",
+
+                content:
+                  "You are an expert AI interviewer.",
+              },
+
+              {
+                role: "user",
+
+                content: prompt,
+              },
+            ],
+
+            temperature: 0.8,
+          }),
+        }
       );
 
-    const response =
-      await result.response;
+    const data =
+      await response.json();
 
     const text =
-      response.text();
+      data?.choices?.[0]
+        ?.message?.content ||
+      "";
 
     const cleaned = text
       .replace(/```json/g, "")
@@ -139,6 +158,7 @@ Format:
           success: false,
           error:
             "Invalid AI response",
+          raw: cleaned,
         },
         { status: 500 }
       );
@@ -151,7 +171,7 @@ Format:
     });
   } catch (err: any) {
     console.error(
-      "INTERVIEW QUESTION ERROR:",
+      "INTERVIEW ERROR:",
       err
     );
 
