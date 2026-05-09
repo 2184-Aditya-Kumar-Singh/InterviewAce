@@ -10,48 +10,6 @@ import type {
   ParsedResume,
 } from "./types";
 
-function pickSkill(
-  resume: ParsedResume,
-  jd: JDAnalysis
-) {
-  const resumeSkills =
-    resume.skills.map((s) =>
-      s.toLowerCase()
-    );
-
-  const jdSkills =
-    jd.requiredSkills.map((s) =>
-      s.toLowerCase()
-    );
-
-  return (
-    jdSkills.find((skill) =>
-      resumeSkills.includes(skill)
-    ) ||
-    resumeSkills[0] ||
-    jdSkills[0] ||
-    "problem solving"
-  );
-}
-
-function getPersonaTone(
-  persona: InterviewPersona
-) {
-  switch (persona) {
-    case "Strict Technical Lead":
-      return "strict, technical, analytical";
-
-    case "Senior Engineering Manager":
-      return "senior engineering manager style";
-
-    case "Corporate VP":
-      return "corporate executive style";
-
-    default:
-      return "friendly HR interviewer";
-  }
-}
-
 export async function generateQuestion(
   input: {
     resume: ParsedResume;
@@ -69,138 +27,10 @@ export async function generateQuestion(
     asked: string[];
   }
 ): Promise<InterviewQuestion> {
-  const topic = pickSkill(
-    input.resume,
-    input.jd
-  );
-
   try {
     const response =
       await fetch(
         "/api/interview/question",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            ...input,
-            topic,
-            tone:
-              getPersonaTone(
-                input.persona
-              ),
-          }),
-        }
-      );
-
-    const data =
-      await response.json();
-
-    if (
-      data?.success &&
-      data?.question
-    ) {
-      return {
-        id:
-          crypto.randomUUID(),
-
-        question:
-          data.question.question,
-
-        focusArea:
-          data.question
-            .focusArea ||
-          topic,
-
-        round:
-          data.question
-            .round ||
-          input.round,
-
-        expectedSignals:
-          data.question
-            .expectedSignals ||
-          [],
-      };
-    }
-  } catch (err) {
-    console.error(err);
-  }
-
-  const fallbackQuestions =
-    {
-      HR: [
-        `Tell me about yourself and explain how your background fits this ${input.jd.role} role.`,
-
-        `Why do you think you are a good fit for this company and role?`,
-
-        `Describe a challenge you faced in one of your projects and how you solved it.`,
-      ],
-
-      Technical: [
-        `Explain how you would use ${topic} in a real production application.`,
-
-        `Walk me through a technical project from your resume involving ${topic}.`,
-
-        `What are the common performance issues related to ${topic}?`,
-      ],
-
-      Mixed: [
-        `Explain one project from your resume and also discuss the technical decisions behind it.`,
-
-        `How would your technical skills help in solving business problems?`,
-
-        `Tell me about a challenging debugging issue you solved.`,
-      ],
-    };
-
-  const bank =
-    fallbackQuestions[
-      input.round
-    ];
-
-  return {
-    id:
-      crypto.randomUUID(),
-
-    question:
-      bank[
-        input.asked.length %
-          bank.length
-      ],
-
-    focusArea: topic,
-
-    round: input.round,
-
-    expectedSignals: [
-      topic,
-      "clarity",
-      "technical depth",
-      "real examples",
-    ],
-  };
-}
-
-export async function createInterviewReport(
-  input: {
-    answers: InterviewAnswer[];
-
-    difficulty: Difficulty;
-
-    jd?: JDAnalysis;
-
-    resume?: ParsedResume;
-  }
-): Promise<InterviewReport> {
-  try {
-    const response =
-      await fetch(
-        "/interview/report",
         {
           method: "POST",
 
@@ -219,72 +49,206 @@ export async function createInterviewReport(
       await response.json();
 
     if (
-      data?.success &&
-      data?.report
+      !data?.question
     ) {
-      return data.report;
+      throw new Error(
+        "No question returned"
+      );
     }
+
+    return {
+      id:
+        data.question.id ||
+        crypto.randomUUID(),
+
+      question:
+        typeof data.question
+          .question ===
+        "string"
+          ? data.question
+              .question
+          : "Tell me about yourself.",
+
+      focusArea:
+        data.question
+          .focusArea ||
+        "General",
+
+      round:
+        data.question
+          .round ||
+        input.round,
+
+      expectedSignals:
+        Array.isArray(
+          data.question
+            .expectedSignals
+        )
+          ? data.question
+              .expectedSignals
+          : [],
+    };
   } catch (err) {
     console.error(err);
+
+    return {
+      id:
+        crypto.randomUUID(),
+
+      question:
+        "Tell me about a technical challenge you recently solved.",
+
+      focusArea:
+        "Problem Solving",
+
+      round:
+        input.round,
+
+      expectedSignals:
+        [
+          "technical depth",
+          "communication",
+          "decision making",
+        ],
+    };
   }
+}
+
+export async function createInterviewReport(
+  input: {
+    answers: InterviewAnswer[];
+
+    difficulty: Difficulty;
+
+    jd?: JDAnalysis;
+
+    resume?: ParsedResume;
+  }
+): Promise<InterviewReport> {
+  const answered =
+    input.answers.filter(
+      (a) =>
+        a.answer &&
+        a.answer.trim()
+          .length > 0
+    );
+
+  const technical =
+    answered.filter(
+      (a) =>
+        a.round ===
+        "Technical"
+    );
+
+  const score =
+    answered.length > 0
+      ? Math.min(
+          95,
+          55 +
+            answered.length *
+              5
+        )
+      : 0;
 
   return {
-    overallScore: 72,
+    overallScore:
+      score,
 
-    technicalScore: 74,
+    technicalScore:
+      technical.length > 0
+        ? Math.min(
+            95,
+            60 +
+              technical.length *
+                4
+          )
+        : 50,
 
-    codingScore: 70,
+    codingScore: 75,
 
-    communicationScore: 76,
+    resumeAlignmentScore:
+      input.jd
+        ?.matchPercent ||
+      60,
 
-    confidenceEstimate: 71,
+    communicationScore: 80,
 
-    resumeAlignmentScore: 80,
+    confidenceEstimate: 78,
+
+    answerReviews:
+      answered.map(
+        (a) => ({
+          question:
+            a.question,
+
+          answer:
+            a.answer,
+
+          score: 75,
+
+          verdict:
+            "Strong",
+
+          feedback:
+            "Good answer with reasonable clarity and structure.",
+
+          missingSignals:
+            [],
+        })
+      ),
 
     strengths: [
-      "Good communication skills",
+      "Good communication",
 
-      "Relevant project experience",
+      "Relevant examples",
 
-      "Understands core technical concepts",
+      "Strong technical alignment",
     ],
 
     weaknesses: [
-      "Needs deeper technical explanations",
+      "Could improve depth in some answers",
 
-      "Could improve optimization discussion",
+      "Add more measurable impact",
 
-      "Should provide more measurable outcomes",
+      "Practice concise delivery",
     ],
 
     resumeAdditions: [
-      "Add metrics to projects",
+      "Add measurable project outcomes",
 
-      "Mention deployment technologies",
+      "Highlight deployment experience",
 
-      "Include scalability details",
+      "Mention scalability work",
     ],
 
     resumeRemovals: [
-      "Remove generic statements",
+      "Remove repetitive skills",
+
+      "Reduce generic wording",
     ],
 
     focusAreas: [
-      "System design",
+      "System Design",
 
-      "DSA",
+      "Problem Solving",
 
-      "Project explanation",
+      "Behavioral Confidence",
     ],
 
     roadmap: [
       "Practice mock interviews daily",
 
-      "Solve more coding questions",
+      "Revise DSA fundamentals",
 
-      "Improve behavioral storytelling",
+      "Improve STAR storytelling",
+
+      "Strengthen system design",
+
+      "Prepare project deep-dives",
+
+      "Practice coding under time pressure",
+
+      "Improve concise communication",
     ],
-
-    answerReviews: [],
   };
 }
