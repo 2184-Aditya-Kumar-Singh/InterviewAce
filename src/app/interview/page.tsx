@@ -335,24 +335,26 @@ export default function InterviewPage() {
         await response.json();
 
       setJd({
-        role:
-          data?.analysis?.role ||
-          "Software Engineer",
+  role:
+    data?.analysis?.role ||
+    "Software Engineer",
 
-        matchPercent:
-          data?.analysis
-            ?.matchPercent || 0,
+  summary:
+    data?.analysis?.summary ||
+    "",
 
-        requiredSkills:
-          data?.analysis
-            ?.requiredSkills ||
-          [],
+  matchPercent:
+    data?.analysis
+      ?.matchPercent || 0,
 
-        missingSkills:
-          data?.analysis
-            ?.missingSkills ||
-          [],
-      });
+  requiredSkills:
+    data?.analysis
+      ?.requiredSkills || [],
+
+  missingSkills:
+    data?.analysis
+      ?.missingSkills || [],
+});
     } catch (err) {
       console.error(err);
 
