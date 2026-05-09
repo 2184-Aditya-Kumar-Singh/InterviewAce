@@ -1,9 +1,15 @@
+import OpenAI from "openai";
+
 import type {
   CodingChallenge,
   Difficulty,
   JDAnalysis,
   ParsedResume,
 } from "./types";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const defaultResume: ParsedResume = {
   rawText: "",
@@ -36,211 +42,135 @@ function pickTopic(
   );
 }
 
-const codingBank: Record<
-  string,
-  CodingChallenge[]
-> = {
-  arrays: [
+export async function createCodingChallenge(input?: {
+  resume?: ParsedResume;
+  jd?: JDAnalysis | null;
+  difficulty?: Difficulty;
+  experienceLevel?: string;
+  interviewMode?: boolean;
+}): Promise<CodingChallenge> {
+  const resume =
+    input?.resume || defaultResume;
+
+  const jd = input?.jd || null;
+
+  const difficulty =
+    input?.difficulty || "Medium";
+
+  const experienceLevel =
+    input?.experienceLevel ||
+    "student/fresher";
+
+  const topic = pickTopic(resume, jd);
+
+  const role = jd?.role || "Software Engineer";
+
+  try {
+    const prompt = `
+Generate ONE realistic coding interview question.
+
+Requirements:
+- Role: ${role}
+- Topic: ${topic}
+- Skills: ${resume.skills.join(", ")}
+- Difficulty: ${difficulty}
+- Experience Level: ${experienceLevel}
+
+Return ONLY valid JSON in this format:
+
+{
+  "title": "",
+  "topic": "",
+  "difficulty": "",
+  "timeLimitSeconds": 1800,
+  "prompt": "",
+  "testCases": [
     {
+      "input": "",
+      "expectedOutput": ""
+    }
+  ],
+  "solutionHint": "",
+  "referenceAnswer": ""
+}
+
+Rules:
+- Must resemble real LeetCode/company interview question
+- Make it unique
+- Include proper realistic test cases
+- Avoid trivial questions
+- No markdown
+`;
+
+    const response =
+      await client.chat.completions.create({
+        model: "gpt-4o-mini",
+
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert technical interviewer generating realistic coding interview problems.",
+          },
+
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+
+        temperature: 0.9,
+      });
+
+    const text =
+      response.choices[0].message.content;
+
+    if (!text) {
+      throw new Error(
+        "No coding question generated"
+      );
+    }
+
+    const parsed =
+      JSON.parse(text) as CodingChallenge;
+
+    return {
+      ...parsed,
+
+      timeLimitSeconds:
+        input?.interviewMode
+          ? 900
+          : parsed.timeLimitSeconds || 1800,
+    };
+  } catch (err) {
+    console.error(
+      "AI coding generation failed:",
+      err
+    );
+
+    // FALLBACK QUESTION
+    return {
       title: "Two Sum",
       topic: "arrays",
       difficulty: "Easy",
-      timeLimitSeconds: 1800,
+      timeLimitSeconds:
+        input?.interviewMode ? 900 : 1800,
+
       prompt:
         "Given an array and a target, print indices of two numbers whose sum equals target.",
+
       testCases: [
         {
           input: "4\n2 7 11 15\n9",
           expectedOutput: "0 1",
         },
       ],
+
       solutionHint:
         "Use hashmap for O(n) solution.",
+
       referenceAnswer:
         "Store visited numbers in a map.",
-    },
-
-    {
-      title: "Maximum Subarray",
-      topic: "arrays",
-      difficulty: "Medium",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Find the contiguous subarray with maximum sum.",
-      testCases: [
-        {
-          input: "8\n-2 1 -3 4 -1 2 1 -5",
-          expectedOutput: "6",
-        },
-      ],
-      solutionHint:
-        "Kadane’s Algorithm.",
-      referenceAnswer:
-        "Track current and global maximum.",
-    },
-  ],
-
-  strings: [
-    {
-      title: "Valid Palindrome",
-      topic: "strings",
-      difficulty: "Easy",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Check if given string is palindrome ignoring spaces and punctuation.",
-      testCases: [
-        {
-          input: "A man a plan a canal Panama",
-          expectedOutput: "true",
-        },
-      ],
-      solutionHint:
-        "Use two pointers.",
-      referenceAnswer:
-        "Normalize string and compare.",
-    },
-
-    {
-      title: "Longest Unique Substring",
-      topic: "strings",
-      difficulty: "Medium",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Find length of longest substring without repeating characters.",
-      testCases: [
-        {
-          input: "abcabcbb",
-          expectedOutput: "3",
-        },
-      ],
-      solutionHint:
-        "Sliding window + set.",
-      referenceAnswer:
-        "Expand and shrink window.",
-    },
-  ],
-
-  sql: [
-    {
-      title: "Top Scoring User",
-      topic: "sql",
-      difficulty: "Easy",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Find user with highest cumulative score.",
-      testCases: [
-        {
-          input:
-            "5\n1 10\n2 15\n1 20\n3 8\n2 5",
-          expectedOutput: "1",
-        },
-      ],
-      solutionHint:
-        "Use hashmap aggregation.",
-      referenceAnswer:
-        "Track cumulative score per user.",
-    },
-  ],
-
-  frontend: [
-    {
-      title: "Debounce Function",
-      topic: "frontend",
-      difficulty: "Medium",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Implement debounce function in JavaScript.",
-      testCases: [
-        {
-          input: "debounce(fn,300)",
-          expectedOutput:
-            "Function delays execution.",
-        },
-      ],
-      solutionHint:
-        "Use setTimeout and clearTimeout.",
-      referenceAnswer:
-        "Store timer reference.",
-    },
-
-    {
-      title: "Flatten Nested Array",
-      topic: "frontend",
-      difficulty: "Easy",
-      timeLimitSeconds: 1800,
-      prompt:
-        "Flatten nested array without using flat().",
-      testCases: [
-        {
-          input: "[1,[2,[3]],4]",
-          expectedOutput: "[1,2,3,4]",
-        },
-      ],
-      solutionHint:
-        "Use recursion.",
-      referenceAnswer:
-        "Recursive DFS flattening.",
-    },
-  ],
-};
-
-function inferCategory(topic: string) {
-  if (
-    /sql|dbms|database/i.test(topic)
-  )
-    return "sql";
-
-  if (
-    /react|frontend|javascript|typescript/i.test(
-      topic
-    )
-  )
-    return "frontend";
-
-  if (
-    /string|communication/i.test(topic)
-  )
-    return "strings";
-
-  return "arrays";
-}
-
-export function createCodingChallenge(input?: {
-  resume?: ParsedResume;
-  jd?: JDAnalysis | null;
-  difficulty?: Difficulty;
-  experienceLevel?: string;
-  interviewMode?: boolean;
-}): CodingChallenge {
-  const resume =
-    input?.resume || defaultResume;
-
-  const jd = input?.jd || null;
-
-  const topic = pickTopic(resume, jd);
-
-  const category = inferCategory(topic);
-
-  const questions =
-    codingBank[category] ||
-    codingBank.arrays;
-
-  // RANDOM QUESTION
-  const randomQuestion =
-    questions[
-      Math.floor(
-        Math.random() * questions.length
-      )
-    ];
-
-  return {
-    ...randomQuestion,
-    difficulty:
-      input?.difficulty ||
-      randomQuestion.difficulty,
-    timeLimitSeconds:
-      input?.interviewMode
-        ? 900
-        : randomQuestion.timeLimitSeconds,
-  };
+    };
+  }
 }
