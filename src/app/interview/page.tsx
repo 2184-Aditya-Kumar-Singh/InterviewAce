@@ -159,10 +159,18 @@ export default function InterviewPage() {
   const [
     voiceEnabled,
     setVoiceEnabled,
-  ] = useState(true);
+  ] = useState(false);
 
   const [speaking, setSpeaking] =
     useState(false);
+
+  const [listening, setListening] =
+    useState(false);
+
+  const [
+    recognition,
+    setRecognition,
+  ] = useState<any>(null);
 
   useEffect(() => {
     async function loadPlan() {
@@ -194,6 +202,11 @@ export default function InterviewPage() {
 
           setPlan(userPlan);
 
+          setVoiceEnabled(
+            userPlan !==
+              "FREE"
+          );
+
           setSecondsLeft(
             planDuration[userPlan]
           );
@@ -204,6 +217,65 @@ export default function InterviewPage() {
     }
 
     loadPlan();
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window ===
+      "undefined"
+    )
+      return;
+
+    if (
+      !(
+        "webkitSpeechRecognition" in
+        window
+      )
+    )
+      return;
+
+    const SpeechRecognition =
+      (
+        window as any
+      )
+        .webkitSpeechRecognition;
+
+    const recog =
+      new SpeechRecognition();
+
+    recog.continuous =
+      false;
+
+    recog.interimResults =
+      false;
+
+    recog.lang = "en-US";
+
+    recog.onstart = () =>
+      setListening(true);
+
+    recog.onend = () =>
+      setListening(false);
+
+    recog.onresult = (
+      event: any
+    ) => {
+      const transcript =
+        event.results[0][0]
+          .transcript;
+
+      setAnswer(
+        transcript
+      );
+
+      setTimeout(() => {
+        submitAnswer(
+          transcript
+        );
+      }, 1200);
+    };
+
+    setRecognition(recog);
   }, []);
 
   useEffect(() => {
@@ -242,7 +314,7 @@ export default function InterviewPage() {
       return;
 
     if (
-      plan !== "PREMIUM"
+      plan === "FREE"
     )
       return;
 
@@ -426,7 +498,19 @@ export default function InterviewPage() {
   }
 
   async function skipQuestion() {
+    await submitAnswer(
+      "I don't know."
+    );
+  }
+
+  async function submitAnswer(
+    customAnswer?: string
+  ) {
     if (!question) return;
+
+    const finalAnswer =
+      customAnswer ||
+      answer;
 
     const nextAnswers = [
       ...answers,
@@ -439,74 +523,7 @@ export default function InterviewPage() {
           question.question,
 
         answer:
-          "I don't know.",
-
-        secondsSpent: 0,
-
-        round:
-          question.round,
-
-        expectedSignals:
-          question.expectedSignals,
-      },
-    ];
-
-    setAnswers(nextAnswers);
-
-    const nextQuestion =
-      await generateQuestion({
-        resume,
-
-        jd:
-          jd || {
-            role:
-              "Software Engineer",
-
-            summary: "",
-
-            matchPercent: 0,
-
-            requiredSkills:
-              [],
-
-            missingSkills:
-              [],
-          },
-
-        difficulty,
-
-        round,
-
-        persona,
-
-        plan,
-
-        asked:
-          nextAnswers.map(
-            (a) =>
-              a.question
-          ),
-      });
-
-    setQuestion(
-      nextQuestion
-    );
-  }
-
-  async function submitAnswer() {
-    if (!question) return;
-
-    const nextAnswers = [
-      ...answers,
-
-      {
-        questionId:
-          question.id,
-
-        question:
-          question.question,
-
-        answer,
+          finalAnswer,
 
         secondsSpent: 0,
 
@@ -522,11 +539,23 @@ export default function InterviewPage() {
 
     setAnswer("");
 
-    if (
-      round !== "HR" &&
-      Math.random() > 0.65 &&
-      !codingSolved
-    ) {
+    const codingRoundsAsked =
+  answers.filter(
+    (a) =>
+      a.questionType ===
+      "coding"
+  ).length;
+
+if (
+  (
+    round ===
+      "Technical" ||
+    round === "Mixed"
+  ) &&
+  codingRoundsAsked < 3 &&
+  answers.length > 0 &&
+  answers.length % 3 === 0
+) {
       try {
         const codingResponse =
           await fetch(
@@ -630,6 +659,29 @@ export default function InterviewPage() {
     setReport(
       generatedReport
     );
+
+    try {
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser();
+
+      if (user) {
+        await supabase
+          .from(
+            "interview_reports"
+          )
+          .insert({
+            user_id:
+              user.id,
+
+            report:
+              generatedReport,
+          });
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function handleCodingSolved() {
@@ -668,7 +720,6 @@ export default function InterviewPage() {
     <AuthGuard>
       <AppShell>
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          {/* LEFT */}
           <div className="space-y-6">
             <InterviewSetup
               resumeFile={
@@ -718,31 +769,43 @@ export default function InterviewPage() {
             />
           </div>
 
-          {/* RIGHT */}
           <div className="space-y-6">
-            <InterviewerAvatar
-              persona={persona}
-              speaking={
-                speaking
-              }
-              listening={
-                !speaking
-              }
-              ttsEnabled={
-                voiceEnabled
-              }
-              variant={
-                plan ===
-                "PREMIUM"
-                  ? "call"
-                  : "compact"
-              }
-              onToggleTts={() =>
-                setVoiceEnabled(
-                  !voiceEnabled
-                )
-              }
-            />
+            {plan !==
+              "FREE" && (
+              <InterviewerAvatar
+                persona={
+                  persona
+                }
+                speaking={
+                  speaking
+                }
+                listening={
+                  listening
+                }
+                ttsEnabled={
+                  voiceEnabled
+                }
+                variant={
+                  plan ===
+                  "PREMIUM"
+                    ? "call"
+                    : "compact"
+                }
+                onToggleTts={() =>
+                  setVoiceEnabled(
+                    !voiceEnabled
+                  )
+                }
+                onStartListening={() => {
+                  if (
+                    plan ===
+                    "PREMIUM"
+                  ) {
+                    recognition?.start();
+                  }
+                }}
+              />
+            )}
 
             <InterviewSession
               question={
@@ -755,8 +818,8 @@ export default function InterviewPage() {
               setAnswer={
                 setAnswer
               }
-              onSubmit={
-                submitAnswer
+              onSubmit={() =>
+                submitAnswer()
               }
               onSkip={
                 skipQuestion
