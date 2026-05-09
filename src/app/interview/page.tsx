@@ -167,13 +167,13 @@ export default function InterviewPage() {
         const {
           data: { user },
         } =
-          await supabase.auth.getUser();
+          await supabase?.auth.getUser();
 
         if (!user) return;
 
         const { data } =
-          await supabase
-            .from("users")
+          await supabase?.
+            from("users")
             .select("plan")
             .eq("id", user.id)
             .single();
@@ -544,7 +544,7 @@ export default function InterviewPage() {
       const {
         data: { user },
       } =
-        await supabase.auth.getUser();
+        await supabase?.auth.getUser();
 
       if (!user) return;
 
