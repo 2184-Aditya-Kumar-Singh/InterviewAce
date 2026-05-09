@@ -200,7 +200,7 @@ export async function createInterviewReport(
   try {
     const response =
       await fetch(
-        "/Interview/report"
+        "/Interview/report",
         {
           method: "POST",
 
