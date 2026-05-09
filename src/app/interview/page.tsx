@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AuthGuard } from "@/components/AuthGuard";
 import { InterviewerAvatar } from "@/components/InterviewerAvatar";
-import { CodingWorkspace } from "@/components/CodingWorkspace";
+import { InterviewCodingRound } from "./InterviewCodingRound";
 
 import { supabase } from "@/lib/supabase";
 
@@ -726,21 +726,14 @@ export default function InterviewPage() {
               {/* CODING */}
               {showCoding && (
                 <div className="mt-8 rounded-2xl border border-emerald-500 bg-slate-950 p-6">
-                  <CodingWorkspace
-                    initialResume={
-                      resume
-                    }
-                    initialJd={jd}
-                    initialDifficulty={
-                      difficulty
-                    }
-                    interviewMode={
-                      true
-                    }
-                    onInterviewSubmit={
-                      handleCodingSolved
-                    }
-                  />
+                  <InterviewCodingRound
+  resume={resume}
+  jd={jd}
+  difficulty={difficulty}
+  onSolved={
+    handleCodingSolved
+  }
+/>
                 </div>
               )}
 
