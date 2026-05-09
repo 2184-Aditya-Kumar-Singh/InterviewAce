@@ -1,3 +1,135 @@
+import type {
+  Difficulty,
+  InterviewAnswer,
+  InterviewPlan,
+  InterviewPersona,
+  InterviewQuestion,
+  InterviewReport,
+  InterviewRound,
+  JDAnalysis,
+  ParsedResume,
+} from "./types";
+
+export async function generateQuestion(
+  input: {
+    resume: ParsedResume;
+
+    jd: JDAnalysis;
+
+    difficulty: Difficulty;
+
+    round: InterviewRound;
+
+    persona: InterviewPersona;
+
+    plan: InterviewPlan;
+
+    asked: string[];
+  }
+): Promise<InterviewQuestion> {
+  try {
+    const response =
+      await fetch(
+        "/api/interview/question",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            input
+          ),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      !data?.question
+    ) {
+      throw new Error(
+        "No question returned"
+      );
+    }
+
+    return {
+      id:
+        data.question.id ||
+        crypto.randomUUID(),
+
+      question:
+        typeof data.question
+          .question ===
+        "string"
+          ? data.question
+              .question
+          : "Tell me about yourself.",
+
+      focusArea:
+        data.question
+          .focusArea ||
+        "General",
+
+      round:
+        data.question
+          .round ||
+        input.round,
+
+      expectedSignals:
+        Array.isArray(
+          data.question
+            .expectedSignals
+        )
+          ? data.question
+              .expectedSignals
+          : [],
+    };
+  } catch (err) {
+    console.error(
+      "QUESTION ERROR:",
+      err
+    );
+
+    return {
+      id:
+        crypto.randomUUID(),
+
+      question:
+        input.round ===
+        "HR"
+          ? "Tell me about a challenging situation you handled in a team project."
+          : "Explain a technical challenge you recently solved and how you approached it.",
+
+      focusArea:
+        input.round ===
+        "HR"
+          ? "Behavioral"
+          : "Problem Solving",
+
+      round:
+        input.round,
+
+      expectedSignals:
+        input.round ===
+        "HR"
+          ? [
+              "communication",
+              "teamwork",
+              "ownership",
+            ]
+          : [
+              "technical depth",
+              "problem solving",
+              "decision making",
+            ],
+    };
+  }
+}
+
 export async function createInterviewReport(
   input: {
     answers: InterviewAnswer[];
