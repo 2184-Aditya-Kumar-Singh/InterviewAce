@@ -1,119 +1,3 @@
-import type {
-  Difficulty,
-  InterviewAnswer,
-  InterviewPlan,
-  InterviewPersona,
-  InterviewQuestion,
-  InterviewReport,
-  InterviewRound,
-  JDAnalysis,
-  ParsedResume,
-} from "./types";
-
-export async function generateQuestion(
-  input: {
-    resume: ParsedResume;
-
-    jd: JDAnalysis;
-
-    difficulty: Difficulty;
-
-    round: InterviewRound;
-
-    persona: InterviewPersona;
-
-    plan: InterviewPlan;
-
-    asked: string[];
-  }
-): Promise<InterviewQuestion> {
-  try {
-    const response =
-      await fetch(
-        "/api/interview/question",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify(
-            input
-          ),
-        }
-      );
-
-    const data =
-      await response.json();
-
-    if (
-      !data?.question
-    ) {
-      throw new Error(
-        "No question returned"
-      );
-    }
-
-    return {
-      id:
-        data.question.id ||
-        crypto.randomUUID(),
-
-      question:
-        typeof data.question
-          .question ===
-        "string"
-          ? data.question
-              .question
-          : "Tell me about yourself.",
-
-      focusArea:
-        data.question
-          .focusArea ||
-        "General",
-
-      round:
-        data.question
-          .round ||
-        input.round,
-
-      expectedSignals:
-        Array.isArray(
-          data.question
-            .expectedSignals
-        )
-          ? data.question
-              .expectedSignals
-          : [],
-    };
-  } catch (err) {
-    console.error(err);
-
-    return {
-      id:
-        crypto.randomUUID(),
-
-      question:
-        "Tell me about a technical challenge you recently solved.",
-
-      focusArea:
-        "Problem Solving",
-
-      round:
-        input.round,
-
-      expectedSignals:
-        [
-          "technical depth",
-          "communication",
-          "decision making",
-        ],
-    };
-  }
-}
-
 export async function createInterviewReport(
   input: {
     answers: InterviewAnswer[];
@@ -125,130 +9,303 @@ export async function createInterviewReport(
     resume?: ParsedResume;
   }
 ): Promise<InterviewReport> {
-  const answered =
-    input.answers.filter(
-      (a) =>
-        a.answer &&
-        a.answer.trim()
-          .length > 0
-    );
+  const reviews =
+    input.answers.map(
+      (a) => {
+        const answer =
+          a.answer
+            ?.toLowerCase()
+            .trim() || "";
 
-  const technical =
-    answered.filter(
-      (a) =>
-        a.round ===
-        "Technical"
-    );
+        let score = 0;
 
-  const score =
-    answered.length > 0
-      ? Math.min(
-          95,
-          55 +
-            answered.length *
-              5
-        )
-      : 0;
+        let verdict:
+          | "Strong"
+          | "Partial"
+          | "Weak"
+          | "Missing" =
+          "Weak";
 
-  return {
-    overallScore:
-      score,
+        let feedback =
+          "";
 
-    technicalScore:
-      technical.length > 0
-        ? Math.min(
-            95,
-            60 +
-              technical.length *
-                4
+        const wordCount =
+          answer.split(
+            /\s+/
+          ).length;
+
+        const hasProjectExample =
+          answer.includes(
+            "project"
+          ) ||
+          answer.includes(
+            "built"
+          ) ||
+          answer.includes(
+            "implemented"
+          );
+
+        const hasTechnicalTerms =
+          /(api|database|algorithm|system|react|next|node|sql|optimization|backend|frontend|architecture)/i.test(
+            answer
+          );
+
+        if (
+          !answer ||
+          wordCount < 3
+        ) {
+          score = 5;
+
+          verdict =
+            "Missing";
+
+          feedback =
+            "No meaningful answer provided.";
+        } else if (
+          answer.includes(
+            "i don't know"
           )
-        : 50,
+        ) {
+          score = 20;
 
-    codingScore: 75,
+          verdict =
+            "Weak";
 
-    resumeAlignmentScore:
-      input.jd
-        ?.matchPercent ||
-      60,
+          feedback =
+            "Candidate admitted lack of knowledge. Try attempting the problem with logical thinking.";
+        } else if (
+          wordCount < 12
+        ) {
+          score = 35;
 
-    communicationScore: 80,
+          verdict =
+            "Weak";
 
-    confidenceEstimate: 78,
+          feedback =
+            "Answer is too short and lacks explanation.";
+        } else if (
+          wordCount < 35
+        ) {
+          score = 55;
 
-    answerReviews:
-      answered.map(
-        (a) => ({
+          verdict =
+            "Partial";
+
+          feedback =
+            "Decent attempt but lacks depth and technical clarity.";
+        } else {
+          score = 70;
+
+          verdict =
+            "Partial";
+
+          feedback =
+            "Reasonably structured answer.";
+        }
+
+        if (
+          hasTechnicalTerms
+        ) {
+          score += 10;
+        }
+
+        if (
+          hasProjectExample
+        ) {
+          score += 10;
+        }
+
+        score = Math.min(
+          95,
+          score
+        );
+
+        if (
+          score >= 80
+        ) {
+          verdict =
+            "Strong";
+
+          feedback =
+            "Strong answer with good technical depth and structured explanation.";
+        }
+
+        return {
           question:
             a.question,
 
           answer:
             a.answer,
 
-          score: 75,
+          score,
 
-          verdict:
-            "Strong",
+          verdict,
 
-          feedback:
-            "Good answer with reasonable clarity and structure.",
+          feedback,
 
           missingSignals:
             [],
-        })
+        };
+      }
+    );
+
+  const overall =
+    reviews.length > 0
+      ? Math.round(
+          reviews.reduce(
+            (
+              acc,
+              curr
+            ) =>
+              acc +
+              curr.score,
+            0
+          ) /
+            reviews.length
+        )
+      : 0;
+
+  const weakAnswers =
+    reviews.filter(
+      (r) =>
+        r.score < 50
+    ).length;
+
+  const strongAnswers =
+    reviews.filter(
+      (r) =>
+        r.score >= 80
+    ).length;
+
+  return {
+    overallScore:
+      overall,
+
+    technicalScore:
+      Math.max(
+        20,
+        overall - 3
       ),
 
-    strengths: [
-      "Good communication",
+    codingScore:
+      Math.max(
+        15,
+        overall - 5
+      ),
 
-      "Relevant examples",
+    resumeAlignmentScore:
+      input.jd
+        ?.matchPercent ||
+      50,
 
-      "Strong technical alignment",
-    ],
+    communicationScore:
+      Math.max(
+        25,
+        overall - 8
+      ),
 
-    weaknesses: [
-      "Could improve depth in some answers",
+    confidenceEstimate:
+      Math.max(
+        20,
+        overall - 10
+      ),
 
-      "Add more measurable impact",
+    answerReviews:
+      reviews,
 
-      "Practice concise delivery",
-    ],
+    strengths:
+      strongAnswers >= 3
+        ? [
+            "Good communication clarity",
+
+            "Strong technical articulation",
+
+            "Provided practical examples",
+
+            "Reasonable confidence in answers",
+          ]
+        : [
+            "Attempted most interview questions",
+          ],
+
+    weaknesses:
+      weakAnswers >= 3
+        ? [
+            "Weak technical depth",
+
+            "Answers lacked detailed explanations",
+
+            "Insufficient confidence in responses",
+
+            "Needs stronger project understanding",
+          ]
+        : [
+            "Can improve answer precision",
+
+            "Need stronger real-world examples",
+          ],
 
     resumeAdditions: [
       "Add measurable project outcomes",
 
+      "Mention scalability/performance improvements",
+
       "Highlight deployment experience",
 
-      "Mention scalability work",
+      "Add quantified technical achievements",
     ],
 
     resumeRemovals: [
-      "Remove repetitive skills",
+      "Reduce repetitive wording",
 
-      "Reduce generic wording",
+      "Remove generic skill descriptions",
     ],
 
     focusAreas: [
-      "System Design",
-
       "Problem Solving",
+
+      "Technical Communication",
+
+      "Project Explanation",
 
       "Behavioral Confidence",
     ],
 
-    roadmap: [
-      "Practice mock interviews daily",
+    roadmap:
+      overall < 45
+        ? [
+            "Revise programming fundamentals",
 
-      "Revise DSA fundamentals",
+            "Practice technical interview questions daily",
 
-      "Improve STAR storytelling",
+            "Strengthen DSA concepts",
 
-      "Strengthen system design",
+            "Prepare project explanations deeply",
 
-      "Prepare project deep-dives",
+            "Improve communication confidence",
 
-      "Practice coding under time pressure",
+            "Practice mock interviews regularly",
+          ]
+        : overall < 70
+        ? [
+            "Improve technical depth",
 
-      "Improve concise communication",
-    ],
+            "Practice structured STAR responses",
+
+            "Revise system design basics",
+
+            "Solve medium-level coding problems daily",
+
+            "Improve concise communication",
+          ]
+        : [
+            "Practice advanced interview rounds",
+
+            "Focus on leadership communication",
+
+            "Strengthen system design skills",
+
+            "Prepare for senior-level technical discussions",
+          ],
   };
 }
