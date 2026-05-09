@@ -24,33 +24,21 @@ const schema = z.object({
     "Mixed",
   ]),
 
-  plan: z
-    .enum([
-      "FREE",
-      "PRO",
-      "PREMIUM",
-    ])
-    .optional(),
+  plan: z.enum([
+    "FREE",
+    "PRO",
+    "PREMIUM",
+  ]),
 
-  persona: z
-    .enum([
-      "Friendly HR",
-      "Strict Technical Lead",
-      "Senior Engineering Manager",
-      "Corporate VP",
-    ])
-    .optional(),
+  persona: z.enum([
+    "Friendly HR",
+    "Strict Technical Lead",
+    "Senior Engineering Manager",
+    "Corporate VP",
+  ]),
 
   asked: z
     .array(z.string())
-    .default([]),
-
-  topic: z
-    .string()
-    .optional(),
-
-  tone: z
-    .string()
     .optional(),
 });
 
@@ -68,107 +56,88 @@ export async function POST(
       60_000
     );
 
-  if (limited)
-    return limited;
-
-  const parsed =
-    schema.safeParse(
-      await request.json()
-    );
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error:
-          "Invalid interview input.",
-      },
-      { status: 400 }
-    );
-  }
+  if (limited) return limited;
 
   try {
-    if (
-      !process.env.GROQ_API_KEY
-    ) {
+    const parsed =
+      schema.safeParse(
+        await request.json()
+      );
+
+    if (!parsed.success) {
       return NextResponse.json(
         {
+          success: false,
+
           error:
-            "Missing GROQ API key",
+            "Invalid interview request",
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
 
     const {
       resume,
+
       jd,
+
       difficulty,
+
       round,
+
       persona,
-      asked,
-      topic,
-      tone,
+
+      asked = [],
     } = parsed.data;
 
     const prompt = `
-You are conducting a realistic professional mock interview.
-
-Interview Type:
-${round}
-
-Interviewer Personality:
-${persona}
-
-Tone:
-${tone}
+You are an expert AI interviewer conducting a realistic mock interview.
 
 Candidate Resume Summary:
 ${resume?.summary || ""}
 
 Candidate Skills:
-${resume?.skills?.join(
-  ", "
-)}
+${resume?.skills?.join(", ") || ""}
 
 Candidate Projects:
-${resume?.projects?.join(
-  ", "
-)}
+${resume?.projects?.join(", ") || ""}
 
 Target Role:
 ${jd?.role || ""}
 
 Required Skills:
-${jd?.requiredSkills?.join(
-  ", "
-)}
-
-Current Focus Topic:
-${topic}
+${jd?.requiredSkills?.join(", ") || ""}
 
 Difficulty:
 ${difficulty}
 
+Interview Type:
+${round}
+
+Interviewer Persona:
+${persona}
+
 Previously Asked Questions:
-${asked?.join("\n")}
+${asked.join("\n")}
 
 Rules:
-
-- Ask ONLY ONE question
+- Ask ONLY ONE interview question
 - Make it realistic
-- Match JD and Resume
-- Technical questions should feel company-level
-- HR questions should feel recruiter-level
-- Avoid repeating previous questions
-- Keep it concise
-- If candidate appears strong ask deeper follow-up
-- Mixed interviews should alternate naturally
+- Keep it conversational
+- Technical questions should feel like FAANG/company interviews
+- HR questions should feel recruiter-like
+- Mixed should naturally alternate
+- NEVER return objects as question
+- ALWAYS return plain string question
+- Avoid repeating questions
+- Focus on resume + JD alignment
 
-Return ONLY RAW JSON.
+Return ONLY valid raw JSON.
 
 Format:
 
 {
+  "id": "",
   "question": "",
   "focusArea": "",
   "round": "",
@@ -198,14 +167,13 @@ Format:
                 role: "system",
 
                 content:
-                  "You are an expert AI interviewer.",
+                  "You are a senior interviewer.",
               },
 
               {
                 role: "user",
 
-                content:
-                  prompt,
+                content: prompt,
               },
             ],
 
@@ -233,28 +201,71 @@ Format:
       generatedQuestion =
         JSON.parse(cleaned);
     } catch {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid AI response",
-          raw: cleaned,
-        },
-        { status: 500 }
-      );
+      generatedQuestion = {
+        id: crypto.randomUUID(),
+
+        question:
+          "Tell me about a technical challenge you recently solved.",
+
+        focusArea:
+          "Problem Solving",
+
+        round,
+
+        expectedSignals:
+          [
+            "communication",
+            "technical depth",
+            "decision making",
+          ],
+      };
+    }
+
+    if (
+      typeof generatedQuestion.question !==
+      "string"
+    ) {
+      generatedQuestion.question =
+        "Tell me about a technical challenge you recently solved.";
     }
 
     return NextResponse.json({
-      question:
-        generatedQuestion,
+      success: true,
+
+      question: {
+        id:
+          generatedQuestion.id ||
+          crypto.randomUUID(),
+
+        question:
+          generatedQuestion.question,
+
+        focusArea:
+          generatedQuestion.focusArea ||
+          "General",
+
+        round:
+          generatedQuestion.round ||
+          round,
+
+        expectedSignals:
+          Array.isArray(
+            generatedQuestion.expectedSignals
+          )
+            ? generatedQuestion.expectedSignals
+            : [],
+      },
     });
   } catch (err: any) {
     console.error(
-      "QUESTION API ERROR:",
+      "QUESTION ERROR:",
       err
     );
 
     return NextResponse.json(
       {
+        success: false,
+
         error:
           err?.message ||
           "Failed generating question",
