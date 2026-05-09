@@ -1,55 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Mail, Sparkles } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import Link from "next/link";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function AuthPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("error") || "",
-  );
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function googleLogin() {
-    if (!supabase) return router.push("/dashboard");
-    setLoading(true);
-    setMessage("");
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) {
-      setMessage(
-        error.message.includes("provider is not enabled")
-          ? "Google login is not enabled in Supabase yet. Enable the Google provider in Supabase Authentication > Providers."
-          : error.message,
-      );
-      setLoading(false);
-      return;
-    }
-    if (data.url) window.location.assign(data.url);
+    setMessage("Google login coming soon.");
   }
 
   async function emailOtpLogin() {
     setLoading(true);
     setMessage("");
+
     if (!supabase) {
-      router.push("/dashboard");
+      setMessage("Authentication service is currently unavailable.");
+      setLoading(false);
       return;
     }
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
+
     setLoading(false);
-    setMessage(error ? error.message : "Check your email for the login link.");
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Check your email for the login link.");
+    }
   }
 
   return (
@@ -61,10 +49,15 @@ export default function AuthPage() {
           </span>
           InterviewAce
         </Link>
-        <h1 className="mt-8 text-3xl font-semibold">Start your mock interview</h1>
+
+        <h1 className="mt-8 text-3xl font-semibold">
+          Start your mock interview
+        </h1>
+
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Persistent sessions are handled by Supabase Auth when configured. Without keys, this runs in local demo mode.
+          Secure authentication is powered by Supabase Auth.
         </p>
+
         <button
           onClick={googleLogin}
           disabled={loading}
@@ -72,30 +65,45 @@ export default function AuthPage() {
         >
           Continue with Google
         </button>
+
         <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-500">
-          <span className="h-px flex-1 bg-white/10" /> or <span className="h-px flex-1 bg-white/10" />
+          <span className="h-px flex-1 bg-white/10" />
+          or
+          <span className="h-px flex-1 bg-white/10" />
         </div>
-        <label className="text-sm text-slate-300" htmlFor="email">Email OTP login</label>
+
+        <label className="text-sm text-slate-300" htmlFor="email">
+          Email OTP login
+        </label>
+
         <div className="mt-2 flex gap-2">
           <div className="flex flex-1 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3">
             <Mail size={18} className="text-slate-400" />
+
             <input
               id="email"
+              type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              className="focus-ring w-full bg-transparent py-3 text-sm text-white placeholder:text-slate-500"
+              className="focus-ring w-full bg-transparent py-3 text-sm text-white placeholder:text-slate-500 outline-none"
             />
           </div>
+
           <button
             onClick={emailOtpLogin}
             disabled={loading || (!email && isSupabaseConfigured)}
             className="focus-ring rounded-lg bg-emerald-400 px-4 font-semibold text-slate-950 disabled:opacity-50"
           >
-            Send
+            {loading ? "Sending..." : "Send"}
           </button>
         </div>
-        {message && <p className="mt-4 rounded-lg bg-emerald-400/10 p-3 text-sm text-emerald-100">{message}</p>}
+
+        {message && (
+          <p className="mt-4 rounded-lg bg-emerald-400/10 p-3 text-sm text-emerald-100">
+            {message}
+          </p>
+        )}
       </div>
     </main>
   );
