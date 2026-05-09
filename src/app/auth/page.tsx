@@ -11,8 +11,26 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   async function googleLogin() {
-    setMessage("Google login coming soon.");
+  if (!supabase) {
+    setMessage("Authentication service unavailable.");
+    return;
   }
+
+  setLoading(true);
+  setMessage("");
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    setMessage(error.message);
+    setLoading(false);
+  }
+}
 
   async function emailOtpLogin() {
     setLoading(true);
