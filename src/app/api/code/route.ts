@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 
-import {
-  GoogleGenerativeAI,
-} from "@google/generative-ai";
+import Groq from "groq-sdk";
+
+const client = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
         {
           success: false,
-          error: "Missing Gemini API key",
+          error: "Missing GROQ API key",
         },
         { status: 500 }
       );
@@ -24,16 +26,6 @@ export async function POST(req: Request) {
       difficulty,
       experienceLevel,
     } = body;
-
-    const genAI =
-      new GoogleGenerativeAI(
-        process.env.GEMINI_API_KEY
-      );
-
-    const model =
-      genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-      });
 
     const prompt = `
 Generate ONE realistic coding interview question.
@@ -75,16 +67,32 @@ Rules:
 - Avoid trivial problems
 `;
 
-    const result =
-      await model.generateContent(prompt);
-
     const response =
-      await result.response;
+      await client.chat.completions.create({
+        model: "llama3-70b-8192",
 
-    const text = response.text();
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert coding interview generator.",
+          },
+
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+
+        temperature: 1,
+      });
+
+    const text =
+      response.choices[0]?.message
+        ?.content || "";
 
     console.log(
-      "GEMINI RAW RESPONSE:",
+      "GROQ RAW RESPONSE:",
       text
     );
 
@@ -107,7 +115,7 @@ Rules:
         {
           success: false,
           error:
-            "Invalid Gemini response format",
+            "Invalid AI response format",
           raw: cleaned,
         },
         { status: 500 }
@@ -120,7 +128,7 @@ Rules:
     });
   } catch (err: any) {
     console.error(
-      "GEMINI API ERROR:",
+      "GROQ API ERROR:",
       err
     );
 
