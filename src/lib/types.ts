@@ -1,6 +1,10 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
-export type InterviewPersona = "Friendly HR" | "Strict Technical Lead" | "Corporate Manager";
+export type InterviewPersona =
+  | "Friendly HR"
+  | "Strict Technical Lead"
+  | "Senior Engineering Manager"
+  | "Corporate VP";
 
 export type InterviewRound = "HR" | "Technical" | "Mixed";
 
@@ -37,7 +41,7 @@ export type InterviewQuestion = {
 };
 
 export type InterviewAnswer = {
-  questionId: string;
+  questionId?: string;
   question: string;
   answer: string;
   secondsSpent: number;
