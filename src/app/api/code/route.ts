@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: Request) {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing OpenAI API key",
+        },
+        { status: 500 }
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -15,6 +21,10 @@ export async function POST(req: Request) {
       difficulty,
       experienceLevel,
     } = body;
+
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const prompt = `
 Generate ONE realistic coding interview question.
@@ -27,16 +37,17 @@ Requirements:
 
 Return ONLY RAW JSON.
 
-DO NOT wrap response in markdown.
-DO NOT use \`\`\`json.
-DO NOT explain anything.
+Do NOT wrap response in markdown.
+Do NOT use markdown code blocks.
+Do NOT explain anything.
 
-Format:
+Use this exact format:
 
 {
   "title": "",
   "topic": "",
   "difficulty": "",
+  "timeLimitSeconds": 1800,
   "prompt": "",
   "testCases": [
     {
@@ -49,9 +60,9 @@ Format:
 }
 
 Rules:
-- Create unique interview-style problem
+- Create unique interview-style problems
 - Similar to LeetCode/company OA
-- Include proper constraints
+- Include realistic constraints
 - Avoid trivial problems
 `;
 
@@ -78,9 +89,8 @@ Rules:
     const text =
       response.choices[0].message.content || "";
 
-    console.log("AI RESPONSE:", text);
+    console.log("RAW AI RESPONSE:", text);
 
-    // CLEAN MARKDOWN IF AI ADDS IT
     const cleaned = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -111,13 +121,17 @@ Rules:
       success: true,
       question: parsed,
     });
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    console.error(
+      "CODE API ERROR:",
+      err
+    );
 
     return NextResponse.json(
       {
         success: false,
         error:
+          err?.message ||
           "Failed generating coding question",
       },
       { status: 500 }
