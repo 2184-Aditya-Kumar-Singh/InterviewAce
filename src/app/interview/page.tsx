@@ -112,13 +112,14 @@ export default function InterviewPage() {
           data?.plan ===
             "PREMIUM"
         ) {
-          setPlan(data.plan);
+          const userPlan =
+  data.plan as InterviewPlan;
 
-          setSecondsLeft(
-            planDuration[
-              data.plan
-            ]
-          );
+setPlan(userPlan);
+
+setSecondsLeft(
+  planDuration[userPlan]
+);
         }
       } catch (err) {
         console.error(err);
