@@ -366,35 +366,39 @@ export default function InterviewPage() {
       return;
     }
 
-    await generateQuestion({
-  resume,
-  jd:
-    jd || {
-      role:
-        "Software Engineer",
+   const nextQuestion =
+  await generateQuestion({
+    resume,
 
-      summary: "",
+    jd:
+      jd || {
+        role:
+          "Software Engineer",
 
-      matchPercent: 0,
+        summary: "",
 
-      requiredSkills: [],
+        matchPercent: 0,
 
-      missingSkills: [],
-    },
+        requiredSkills: [],
 
-  difficulty,
+        missingSkills: [],
+      },
 
-  round,
+    difficulty,
 
-  persona,
-        plan,
-        asked:
-          nextAnswers.map(
-            (a) => a.question
-          ),
-      });
+    round,
 
-    setQuestion(nextQuestion);
+    persona,
+
+    plan,
+
+    asked:
+      nextAnswers.map(
+        (a) => a.question
+      ),
+  });
+
+setQuestion(nextQuestion);
   }
 
   async function finishInterview() {
