@@ -363,7 +363,7 @@ export function CodingWorkspace({
     markSubmitted = false
   ) {
     setRunning(true);
-
+  if (!challenge) return;
     try {
       const nextResults: TestResult[] = [];
 
