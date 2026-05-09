@@ -172,12 +172,15 @@ const user =
 
         if (!user) return;
 
-        const { data } =
-          await supabase?.
-            from("users")
-            .select("plan")
-            .eq("id", user.id)
-            .single();
+        const response =
+  await supabase?.
+    from("users")
+    .select("plan")
+    .eq("id", user.id)
+    .single();
+
+const data =
+  response?.data;
 
         if (
           data?.plan === "FREE" ||
