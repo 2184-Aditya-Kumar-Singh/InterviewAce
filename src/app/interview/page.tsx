@@ -164,10 +164,11 @@ export default function InterviewPage() {
   useEffect(() => {
     async function loadPlan() {
       try {
-        const {
-          data: { user },
-        } =
-          await supabase?.auth.getUser();
+        const authResponse =
+  await supabase?.auth.getUser();
+
+const user =
+  authResponse?.data?.user;
 
         if (!user) return;
 
@@ -541,10 +542,11 @@ export default function InterviewPage() {
     );
 
     try {
-      const {
-        data: { user },
-      } =
-        await supabase?.auth.getUser();
+      const authResponse =
+  await supabase?.auth.getUser();
+
+const user =
+  authResponse?.data?.user;
 
       if (!user) return;
 
