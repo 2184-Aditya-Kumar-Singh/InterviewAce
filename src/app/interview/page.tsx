@@ -45,7 +45,7 @@ export default function InterviewPage() {
   const [jdText, setJdText] = useState("");
   const [jd, setJd] = useState<JDAnalysis | null>(null);
   const [plan, setPlan] = useState<InterviewPlan>(() => getSavedPlan());
-  const [subscribedPlan] = useState<InterviewPlan>(() => getSavedPlan());
+  const [subscribedPlan, setSubscribedPlan] = useState<InterviewPlan>("FREE");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const [round, setRound] = useState<InterviewRound>("Technical");
   const [persona, setPersona] = useState<InterviewPersona>("Friendly HR");
@@ -79,15 +79,18 @@ useEffect(() => {
         .single();
 
       if (
-        data?.plan === "FREE" ||
-        data?.plan === "PRO" ||
-        data?.plan === "PREMIUM"
-      ) {
-        setPlan(data.plan);
-        setSecondsLeft(
-          planDuration[data.plan]
-        );
-      }
+  data?.plan === "FREE" ||
+  data?.plan === "PRO" ||
+  data?.plan === "PREMIUM"
+) {
+  setPlan(data.plan);
+
+  setSubscribedPlan(data.plan);
+
+  setSecondsLeft(
+    planDuration[data.plan]
+  );
+}
     } catch (err) {
       console.error(err);
     }
