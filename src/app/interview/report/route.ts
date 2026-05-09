@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
 
-import {
-  GoogleGenerativeAI,
-} from "@google/generative-ai";
-
 export async function POST(
   req: Request
 ) {
@@ -19,28 +15,17 @@ export async function POST(
     } = body;
 
     if (
-      !process.env.GEMINI_API_KEY
+      !process.env.GROQ_API_KEY
     ) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Missing Gemini API key",
+            "Missing GROQ API key",
         },
         { status: 500 }
       );
     }
-
-    const genAI =
-      new GoogleGenerativeAI(
-        process.env.GEMINI_API_KEY
-      );
-
-    const model =
-      genAI.getGenerativeModel({
-        model:
-          "gemini-1.5-flash",
-      });
 
     const prompt = `
 You are an expert interview evaluator.
@@ -55,7 +40,7 @@ ${resume?.skills?.join(
   ", "
 )}
 
-Job Role:
+Target Role:
 ${jd?.role || ""}
 
 Required Skills:
@@ -82,7 +67,7 @@ Instructions:
 - Evaluate coding ability
 - Detect weak answers
 - Detect vague answers
-- Give realistic recruiter-style review
+- Give recruiter-style review
 - Give actionable improvements
 
 Return ONLY RAW JSON.
@@ -113,16 +98,50 @@ Format:
 }
 `;
 
-    const result =
-      await model.generateContent(
-        prompt
+    const response =
+      await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+
+          headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            model:
+              "llama-3.3-70b-versatile",
+
+            messages: [
+              {
+                role: "system",
+
+                content:
+                  "You are an expert mock interview evaluator.",
+              },
+
+              {
+                role: "user",
+
+                content: prompt,
+              },
+            ],
+
+            temperature: 0.7,
+          }),
+        }
       );
 
-    const response =
-      await result.response;
+    const data =
+      await response.json();
 
     const text =
-      response.text();
+      data?.choices?.[0]
+        ?.message?.content ||
+      "";
 
     const cleaned = text
       .replace(/```json/g, "")
@@ -140,6 +159,7 @@ Format:
           success: false,
           error:
             "Invalid AI report response",
+          raw: cleaned,
         },
         { status: 500 }
       );
