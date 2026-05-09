@@ -77,7 +77,7 @@ export async function generateQuestion(
   try {
     const response =
       await fetch(
-        "/api/interview/question",
+        "/Interview"
         {
           method: "POST",
 
