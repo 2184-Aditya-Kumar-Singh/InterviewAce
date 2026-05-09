@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import type {
   InterviewQuestion,
   InterviewAnswer,
@@ -28,6 +26,8 @@ type Props = {
   loading: boolean;
 
   secondsLeft: number;
+
+  premium?: boolean;
 };
 
 export function InterviewSession({
@@ -46,14 +46,13 @@ export function InterviewSession({
   loading,
 
   secondsLeft,
-}: Props) {
-  const [expanded, setExpanded] =
-    useState(false);
 
+  premium = false,
+}: Props) {
   if (!question) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-8">
-        <h2 className="text-2xl font-bold">
+      <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-10">
+        <h2 className="text-3xl font-black">
           Interview not started
         </h2>
 
@@ -67,7 +66,13 @@ export function InterviewSession({
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-8">
+    <div
+      className={`rounded-3xl border border-white/10 ${
+        premium
+          ? "bg-black"
+          : "bg-slate-950/70"
+      } p-8`}
+    >
       {/* TIMER */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -92,45 +97,29 @@ export function InterviewSession({
       </div>
 
       {/* QUESTION */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-8">
-        <div className="flex items-center justify-between gap-4">
-          <h3 className="text-3xl font-bold">
-            Interview Question
-          </h3>
+      <div
+        className={`rounded-3xl border border-white/10 ${
+          premium
+            ? "bg-slate-950"
+            : "bg-slate-900/60"
+        } p-8`}
+      >
+        <h3 className="text-3xl font-black">
+          Interview Question
+        </h3>
 
-          <button
-            onClick={() =>
-              setExpanded(
-                !expanded
-              )
-            }
-            className="text-sm text-emerald-300"
-          >
-            {expanded
-              ? "Collapse"
-              : "Expand"}
-          </button>
-        </div>
+        <p className="mt-6 whitespace-pre-wrap text-xl leading-10 text-slate-200">
+          {typeof question.question ===
+          "string"
+            ? question.question
+            : "Tell me about yourself and your recent technical work."}
+        </p>
 
-        <div
-          className={`overflow-hidden transition-all ${
-            expanded
-              ? "max-h-[1200px]"
-              : "max-h-[220px]"
-          }`}
-        >
-          <p className="mt-6 whitespace-pre-wrap text-lg leading-9 text-slate-200">
-            {
-              question.question
-            }
-          </p>
-        </div>
-
-        {/* Signals */}
+        {/* SIGNALS */}
         {question.expectedSignals
           ?.length > 0 && (
           <div className="mt-8">
-            <p className="mb-3 text-sm font-semibold text-slate-400">
+            <p className="mb-4 text-sm font-semibold text-slate-400">
               Interview Focus
             </p>
 
@@ -139,7 +128,7 @@ export function InterviewSession({
                 (signal) => (
                   <span
                     key={signal}
-                    className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-300"
+                    className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-300"
                   >
                     {signal}
                   </span>
@@ -161,10 +150,10 @@ export function InterviewSession({
           }
           rows={10}
           placeholder="Write your answer here..."
-          className="w-full rounded-2xl border border-white/10 bg-slate-900 p-5 text-lg"
+          className="w-full rounded-3xl border border-white/10 bg-slate-900 p-5 text-lg"
         />
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-400">
             If you don't know
             the answer, write:
@@ -172,7 +161,7 @@ export function InterviewSession({
           </p>
 
           <p className="text-sm text-slate-500">
-            Answers:{" "}
+            Questions Answered:{" "}
             {answers.length}
           </p>
         </div>
@@ -183,7 +172,7 @@ export function InterviewSession({
         <button
           onClick={onSubmit}
           disabled={loading}
-          className="rounded-xl bg-emerald-400 px-6 py-4 font-bold text-slate-950"
+          className="rounded-2xl bg-emerald-400 px-7 py-4 font-black text-slate-950"
         >
           {loading
             ? "Submitting..."
@@ -192,7 +181,7 @@ export function InterviewSession({
 
         <button
           onClick={onSkip}
-          className="rounded-xl border border-white/10 px-6 py-4 font-semibold text-slate-300"
+          className="rounded-2xl border border-white/10 px-7 py-4 font-semibold text-slate-300"
         >
           Skip Question
         </button>
