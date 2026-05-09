@@ -18,29 +18,39 @@ export default function AuthCallbackPage() {
       }
 
       try {
-        // Handle OAuth/code exchange if present
         const url = new URL(window.location.href);
 
         if (url.searchParams.get("error")) {
           router.replace(
             `/auth?error=${encodeURIComponent(
-              url.searchParams.get("error_description") ||
-                "Sign in failed"
+              url.searchParams.get(
+                "error_description"
+              ) || "Sign in failed"
             )}`
           );
           return;
         }
 
         if (url.searchParams.get("code")) {
-          await supabase.auth.exchangeCodeForSession(
-            window.location.href
-          );
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(
+              window.location.href
+            );
+
+          if (exchangeError) {
+            router.replace(
+              `/auth?error=${encodeURIComponent(
+                exchangeError.message
+              )}`
+            );
+            return;
+          }
         }
 
-        // Give Supabase time to store session
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000)
+        );
 
-        // Get current session
         const {
           data: { session },
           error,
@@ -53,7 +63,12 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // Sync profile
+        // CREATE USER PROFILE
+        await supabase.from("profiles").upsert({
+          id: session.user.id,
+          email: session.user.email,
+        });
+
         const profile = await syncCurrentProfile();
 
         if (profile?.role === "admin") {
@@ -63,7 +78,9 @@ export default function AuthCallbackPage() {
 
         router.replace("/dashboard");
       } catch (err) {
-        router.replace("/auth?error=Authentication%20failed");
+        router.replace(
+          "/auth?error=Authentication%20failed"
+        );
       }
     }
 
