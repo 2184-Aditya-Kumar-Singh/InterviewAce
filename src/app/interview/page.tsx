@@ -1,20 +1,6 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
-
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
-import { useRouter } from "next/navigation";
-
-import {
-  Code2,
-  Mic,
-  MicOff,
-} from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 
@@ -24,13 +10,12 @@ import { CodingWorkspace } from "@/components/CodingWorkspace";
 
 import { InterviewerAvatar } from "@/components/InterviewerAvatar";
 
+import { supabase } from "@/lib/supabase";
+
 import type {
   Difficulty,
-  InterviewAnswer,
   InterviewPlan,
   InterviewPersona,
-  InterviewQuestion,
-  InterviewReport,
   InterviewRound,
   JDAnalysis,
   ParsedResume,
@@ -49,68 +34,18 @@ const blankResume: ParsedResume =
     summary: "",
   };
 
-const planRank: Record<
-  InterviewPlan,
-  number
-> = {
-  FREE: 0,
-  PRO: 1,
-  PREMIUM: 2,
-};
-
 const planDuration: Record<
   InterviewPlan,
   number
 > = {
   FREE: 600,
+
   PRO: 1800,
+
   PREMIUM: 1800,
 };
 
-function getSavedPlan(): InterviewPlan {
-  return "FREE";
-}
-
-type SpeechRecognitionLike =
-  {
-    lang: string;
-
-    interimResults: boolean;
-
-    continuous: boolean;
-
-    onstart:
-      | (() => void)
-      | null;
-
-    onend:
-      | (() => void)
-      | null;
-
-    onerror:
-      | (() => void)
-      | null;
-
-    onresult:
-      | ((
-          event: {
-            results: ArrayLike<
-              ArrayLike<{
-                transcript: string;
-              }>
-            >;
-          }
-        ) => void)
-      | null;
-
-    start: () => void;
-
-    stop: () => void;
-  };
-
 export default function InterviewPage() {
-  const router = useRouter();
-
   const [resume, setResume] =
     useState<ParsedResume>(
       blankResume
@@ -122,19 +57,6 @@ export default function InterviewPage() {
   const [jd, setJd] =
     useState<JDAnalysis | null>(
       null
-    );
-
-  const [plan, setPlan] =
-    useState<InterviewPlan>(
-      () => getSavedPlan()
-    );
-
-  const [
-    subscribedPlan,
-    setSubscribedPlan,
-  ] =
-    useState<InterviewPlan>(
-      "FREE"
     );
 
   const [difficulty, setDifficulty] =
@@ -152,27 +74,9 @@ export default function InterviewPage() {
       "Friendly HR"
     );
 
-  const [question, setQuestion] =
-    useState<InterviewQuestion | null>(
-      null
-    );
-
-  const [answer, setAnswer] =
-    useState("");
-
-  const [
-    codeAnswer,
-    setCodeAnswer,
-  ] = useState("");
-
-  const [answers, setAnswers] =
-    useState<
-      InterviewAnswer[]
-    >([]);
-
-  const [report, setReport] =
-    useState<InterviewReport | null>(
-      null
+  const [plan, setPlan] =
+    useState<InterviewPlan>(
+      "FREE"
     );
 
   const [
@@ -182,23 +86,6 @@ export default function InterviewPage() {
 
   const [loading, setLoading] =
     useState("");
-
-  const [ttsEnabled, setTtsEnabled] =
-    useState(true);
-
-  const [speaking, setSpeaking] =
-    useState(false);
-
-  const [listening, setListening] =
-    useState(false);
-
-  const recognitionRef =
-    useRef<SpeechRecognitionLike | null>(
-      null
-    );
-
-  const premiumVoiceOnly =
-    plan === "PREMIUM";
 
   useEffect(() => {
     async function loadPlan() {
@@ -225,17 +112,11 @@ export default function InterviewPage() {
           data?.plan ===
             "PREMIUM"
         ) {
-          setPlan(
-            data.plan as InterviewPlan
-          );
-
-          setSubscribedPlan(
-            data.plan as InterviewPlan
-          );
+          setPlan(data.plan);
 
           setSecondsLeft(
             planDuration[
-              data.plan as InterviewPlan
+              data.plan
             ]
           );
         }
@@ -245,6 +126,20 @@ export default function InterviewPage() {
     }
 
     loadPlan();
+  }, []);
+
+  useEffect(() => {
+    const timer =
+      setInterval(() => {
+        setSecondsLeft((prev) =>
+          prev > 0
+            ? prev - 1
+            : 0
+        );
+      }, 1000);
+
+    return () =>
+      clearInterval(timer);
   }, []);
 
   async function parseResume(
@@ -335,26 +230,28 @@ export default function InterviewPage() {
         await response.json();
 
       setJd({
-  role:
-    data?.analysis?.role ||
-    "Software Engineer",
+        role:
+          data?.analysis?.role ||
+          "Software Engineer",
 
-  summary:
-    data?.analysis?.summary ||
-    "",
+        summary:
+          data?.analysis
+            ?.summary || "",
 
-  matchPercent:
-    data?.analysis
-      ?.matchPercent || 0,
+        matchPercent:
+          data?.analysis
+            ?.matchPercent || 0,
 
-  requiredSkills:
-    data?.analysis
-      ?.requiredSkills || [],
+        requiredSkills:
+          data?.analysis
+            ?.requiredSkills ||
+          [],
 
-  missingSkills:
-    data?.analysis
-      ?.missingSkills || [],
-});
+        missingSkills:
+          data?.analysis
+            ?.missingSkills ||
+          [],
+      });
     } catch (err) {
       console.error(err);
 
@@ -366,67 +263,77 @@ export default function InterviewPage() {
     }
   }
 
+  const timerLabel = `${Math.floor(
+    secondsLeft / 60
+  )}:${String(
+    secondsLeft % 60
+  ).padStart(2, "0")}`;
+
   return (
     <AuthGuard>
       <AppShell>
-        <div className="grid gap-4 xl:grid-cols-[.9fr_1.1fr]">
-          <section className="space-y-5">
-            <div className="glass rounded-lg p-4 sm:p-5">
-              <h1 className="text-2xl font-semibold">
+        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          {/* LEFT */}
+          <div className="space-y-6">
+            <div className="glass rounded-2xl p-6">
+              <h1 className="text-4xl font-bold">
                 Interview Setup
               </h1>
 
-              <label className="mt-5 block text-sm text-slate-300">
-                Resume
-              </label>
+              <div className="mt-8">
+                <label className="mb-3 block text-lg font-medium">
+                  Resume
+                </label>
 
-              <input
-                type="file"
-                accept=".pdf,.docx,.txt"
-                onChange={(
-                  event
-                ) =>
-                  event
-                    .target
-                    .files?.[0] &&
-                  parseResume(
-                    event.target
-                      .files[0]
-                  )
-                }
-                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm"
-              />
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  onChange={(
+                    e
+                  ) =>
+                    e.target
+                      .files?.[0] &&
+                    parseResume(
+                      e.target
+                        .files[0]
+                    )
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4"
+                />
+              </div>
 
-              <label className="mt-5 block text-sm text-slate-300">
-                Job Description
-              </label>
+              <div className="mt-8">
+                <label className="mb-3 block text-lg font-medium">
+                  Job Description
+                </label>
 
-              <textarea
-                value={jdText}
-                onChange={(
-                  event
-                ) =>
-                  setJdText(
-                    event.target
-                      .value
-                  )
-                }
-                rows={7}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-slate-950/70 p-3 text-sm text-white"
-              />
+                <textarea
+                  value={jdText}
+                  onChange={(
+                    e
+                  ) =>
+                    setJdText(
+                      e.target
+                        .value
+                    )
+                  }
+                  rows={10}
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
+                />
+              </div>
 
               <button
                 onClick={
                   analyzeJd
                 }
-                className="mt-5 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950"
+                className="mt-6 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
               >
                 Analyze JD
               </button>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-              <h2 className="font-semibold">
+            <div className="glass rounded-2xl p-6">
+              <h2 className="text-2xl font-bold">
                 Parsed Resume
               </h2>
 
@@ -436,112 +343,96 @@ export default function InterviewPage() {
                   ""
                 }
                 onChange={(
-                  event
+                  e
                 ) =>
                   setResume({
                     ...resume,
                     summary:
-                      event.target
+                      e.target
                         .value,
                   })
                 }
-                rows={4}
-                className="mt-3 w-full rounded-lg border border-white/10 bg-slate-950/70 p-3 text-sm"
+                rows={5}
+                className="mt-4 w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
               />
 
-              <p className="mt-3 text-sm text-slate-300">
-                Skills:{" "}
-                {resume?.skills?.join(
-                  ", "
-                ) ||
-                  "No skills extracted."}
-              </p>
+              <div className="mt-4 text-sm text-slate-300">
+                <p>
+                  Skills:
+                </p>
+
+                <p className="mt-2">
+                  {resume?.skills?.join(
+                    ", "
+                  ) ||
+                    "No skills extracted."}
+                </p>
+              </div>
 
               {jd && (
-                <div className="mt-4 rounded-lg bg-emerald-400/10 p-4 text-sm text-emerald-50">
-                  <p className="font-semibold">
-                    {jd?.role ||
-                      "Role"}{" "}
-                    match:{" "}
-                    {jd?.matchPercent ||
-                      0}
+                <div className="mt-6 rounded-xl bg-emerald-500/10 p-4">
+                  <p className="font-semibold text-emerald-300">
+                    {jd?.role} Match:
+                    {" "}
+                    {jd?.matchPercent}
                     %
                   </p>
 
-                  <p className="mt-1">
-                    Required:{" "}
+                  <p className="mt-3 text-sm">
+                    Required:
+                    {" "}
                     {jd?.requiredSkills?.join(
                       ", "
-                    ) ||
-                      "None"}
+                    )}
                   </p>
 
-                  <p className="mt-1">
-                    Missing:{" "}
+                  <p className="mt-2 text-sm">
+                    Missing:
+                    {" "}
                     {jd?.missingSkills?.join(
                       ", "
-                    ) ||
-                      "No major gaps"}
+                    )}
                   </p>
                 </div>
               )}
             </div>
-          </section>
+          </div>
 
-          <section className="space-y-4">
+          {/* RIGHT */}
+          <div className="space-y-6">
             <InterviewerAvatar
               persona={persona}
-              speaking={speaking}
-              listening={listening}
-              ttsEnabled={
-                ttsEnabled
-              }
+              speaking={false}
+              listening={false}
+              ttsEnabled={true}
               variant="compact"
-              onToggleTts={() =>
-                setTtsEnabled(
-                  (v) => !v
-                )
-              }
+              onToggleTts={() => {}}
             />
 
-            <div className="glass rounded-lg p-4 sm:p-5">
+            <div className="glass rounded-2xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-lg text-slate-400">
                     Timer
                   </p>
 
-                  <p className="text-3xl font-semibold">
-                    {Math.floor(
-                      secondsLeft /
-                        60
-                    )}
-                    :
-                    {String(
-                      secondsLeft %
-                        60
-                    ).padStart(
-                      2,
-                      "0"
-                    )}
+                  <p className="text-5xl font-bold">
+                    {timerLabel}
                   </p>
                 </div>
 
-                <button
-                  disabled={!jd}
-                  className="rounded-lg bg-white px-4 py-3 font-semibold text-slate-950 disabled:opacity-40"
-                >
+                <button className="rounded-xl bg-white px-6 py-4 text-xl font-semibold text-black">
                   Start
                 </button>
               </div>
 
               {loading && (
-                <p className="mt-5 rounded-lg bg-white/10 p-3 text-sm text-slate-200">
+                <div className="mt-6 rounded-xl bg-white/10 p-4">
                   {loading}
-                </p>
+                </div>
               )}
 
-              <div className="mt-6">
+              <div className="mt-8">
                 <CodingWorkspace
                   initialResume={
                     resume
@@ -553,7 +444,7 @@ export default function InterviewPage() {
                 />
               </div>
             </div>
-          </section>
+          </div>
         </div>
       </AppShell>
     </AuthGuard>
