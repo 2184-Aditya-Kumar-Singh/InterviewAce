@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import { AppShell } from "@/components/AppShell";
+
 import { AuthGuard } from "@/components/AuthGuard";
+
 import { InterviewerAvatar } from "@/components/InterviewerAvatar";
-import { InterviewCodingRound } from "./InterviewCodingRound";
 
 import { supabase } from "@/lib/supabase";
 
@@ -20,18 +24,33 @@ import type {
   InterviewPlan,
   InterviewPersona,
   InterviewQuestion,
-  InterviewReport,
+  InterviewReport as ReportType,
   InterviewRound,
   JDAnalysis,
   ParsedResume,
+  CodingChallenge,
 } from "@/lib/types";
+
+import { InterviewSetup } from "./components/InterviewSetup";
+
+import { InterviewSession } from "./components/InterviewSession";
+
+import { InterviewCodingModal } from "./components/InterviewCodingModal";
+
+import { InterviewReport } from "./components/InterviewReport";
+
+import { VoiceControls } from "./components/VoiceControls";
 
 const blankResume: ParsedResume =
   {
     rawText: "",
+
     skills: [],
+
     education: [],
+
     projects: [],
+
     summary: "",
   };
 
@@ -40,7 +59,9 @@ const planDuration: Record<
   number
 > = {
   FREE: 900,
+
   PRO: 1800,
+
   PREMIUM: 2700,
 };
 
@@ -49,6 +70,13 @@ export default function InterviewPage() {
     useState<ParsedResume>(
       blankResume
     );
+
+  const [
+    resumeFile,
+    setResumeFile,
+  ] = useState<File | null>(
+    null
+  );
 
   const [jdText, setJdText] =
     useState("");
@@ -81,6 +109,9 @@ export default function InterviewPage() {
   const [loading, setLoading] =
     useState("");
 
+  const [analyzing, setAnalyzing] =
+    useState(false);
+
   const [
     interviewStarted,
     setInterviewStarted,
@@ -100,7 +131,7 @@ export default function InterviewPage() {
     >([]);
 
   const [report, setReport] =
-    useState<InterviewReport | null>(
+    useState<ReportType | null>(
       null
     );
 
@@ -115,9 +146,28 @@ export default function InterviewPage() {
   ] = useState(false);
 
   const [
+    codingChallenge,
+    setCodingChallenge,
+  ] =
+    useState<CodingChallenge | null>(
+      null
+    );
+
+  const [
     codingSolved,
     setCodingSolved,
   ] = useState(false);
+
+  const [
+    voiceEnabled,
+    setVoiceEnabled,
+  ] = useState(false);
+
+  const [listening, setListening] =
+    useState(false);
+
+  const [speaking, setSpeaking] =
+    useState(false);
 
   useEffect(() => {
     async function loadPlan() {
@@ -179,6 +229,16 @@ export default function InterviewPage() {
       clearInterval(timer);
   }, [interviewStarted]);
 
+  useEffect(() => {
+    if (
+      resumeFile
+    ) {
+      parseResume(
+        resumeFile
+      );
+    }
+  }, [resumeFile]);
+
   async function parseResume(
     file: File
   ) {
@@ -200,6 +260,7 @@ export default function InterviewPage() {
           "/api/resume/parse",
           {
             method: "POST",
+
             body: form,
           }
         );
@@ -241,9 +302,7 @@ export default function InterviewPage() {
 
   async function analyzeJd() {
     try {
-      setLoading(
-        "Analyzing JD..."
-      );
+      setAnalyzing(true);
 
       const response =
         await fetch(
@@ -258,6 +317,7 @@ export default function InterviewPage() {
 
             body: JSON.stringify({
               jdText,
+
               resume,
             }),
           }
@@ -296,7 +356,7 @@ export default function InterviewPage() {
         "Could not analyze JD."
       );
     } finally {
-      setLoading("");
+      setAnalyzing(false);
     }
   }
 
@@ -314,11 +374,17 @@ export default function InterviewPage() {
     const firstQuestion =
       await generateQuestion({
         resume,
+
         jd,
+
         difficulty,
+
         round,
+
         persona,
+
         plan,
+
         asked: [],
       });
 
@@ -332,22 +398,22 @@ export default function InterviewPage() {
       ...answers,
 
       {
-  questionId:
-    question.id,
+        questionId:
+          question.id,
 
-  question:
-    question.question,
+        question:
+          question.question,
 
-  answer,
+        answer,
 
-  secondsSpent: 0,
+        secondsSpent: 0,
 
-  round:
-    question.round,
+        round:
+          question.round,
 
-  expectedSignals:
-    question.expectedSignals,
-},
+        expectedSignals:
+          question.expectedSignals,
+      },
     ];
 
     setAnswers(nextAnswers);
@@ -359,57 +425,107 @@ export default function InterviewPage() {
       Math.random() > 0.65 &&
       !codingSolved
     ) {
-      setShowCoding(true);
+      try {
+        const codingResponse =
+          await fetch(
+            "/api/code",
+            {
+              method: "POST",
 
-      setSecondsLeft(600);
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
 
-      return;
+              body: JSON.stringify({
+                role:
+                  jd?.role ||
+                  "Software Engineer",
+
+                skills:
+                  jd?.requiredSkills ||
+                  [],
+
+                difficulty,
+
+                experienceLevel:
+                  "Intermediate",
+              }),
+            }
+          );
+
+        const codingData =
+          await codingResponse.json();
+
+        setCodingChallenge(
+          codingData.question
+        );
+
+        setShowCoding(true);
+
+        setSecondsLeft(600);
+
+        return;
+      } catch (err) {
+        console.error(err);
+      }
     }
 
-   const nextQuestion =
-  await generateQuestion({
-    resume,
+    const nextQuestion =
+      await generateQuestion({
+        resume,
 
-    jd:
-      jd || {
-        role:
-          "Software Engineer",
+        jd:
+          jd || {
+            role:
+              "Software Engineer",
 
-        summary: "",
+            summary: "",
 
-        matchPercent: 0,
+            matchPercent: 0,
 
-        requiredSkills: [],
+            requiredSkills:
+              [],
 
-        missingSkills: [],
-      },
+            missingSkills:
+              [],
+          },
 
-    difficulty,
+        difficulty,
 
-    round,
+        round,
 
-    persona,
+        persona,
 
-    plan,
+        plan,
 
-    asked:
-      nextAnswers.map(
-        (a) => a.question
-      ),
-  });
+        asked:
+          nextAnswers.map(
+            (a) =>
+              a.question
+          ),
+      });
 
-setQuestion(nextQuestion);
+    setQuestion(
+      nextQuestion
+    );
   }
 
   async function finishInterview() {
     const generatedReport =
-      await createInterviewReport({
-        answers,
-        difficulty,
-        jd:
-          jd || undefined,
-        resume,
-      });
+      await createInterviewReport(
+        {
+          answers,
+
+          difficulty,
+
+          jd:
+            jd ||
+            undefined,
+
+          resume,
+        }
+      );
 
     setReport(
       generatedReport
@@ -417,8 +533,8 @@ setQuestion(nextQuestion);
   }
 
   async function handleCodingSolved(
-  summary?: string
-) {
+    summary?: string
+  ) {
     setShowCoding(false);
 
     setCodingSolved(true);
@@ -430,26 +546,29 @@ setQuestion(nextQuestion);
     const nextQuestion =
       await generateQuestion({
         resume,
+
         jd:
           jd as JDAnalysis,
+
         difficulty,
+
         round,
+
         persona,
+
         plan,
+
         asked:
           answers.map(
-            (a) => a.question
+            (a) =>
+              a.question
           ),
       });
 
-    setQuestion(nextQuestion);
+    setQuestion(
+      nextQuestion
+    );
   }
-
-  const timerLabel = `${Math.floor(
-    secondsLeft / 60
-  )}:${String(
-    secondsLeft % 60
-  ).padStart(2, "0")}`;
 
   return (
     <AuthGuard>
@@ -457,376 +576,145 @@ setQuestion(nextQuestion);
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           {/* LEFT */}
           <div className="space-y-6">
-            <div className="glass rounded-2xl p-6">
-              <h1 className="text-4xl font-bold">
-                Interview Setup
-              </h1>
-
-              {/* Resume */}
-              <div className="mt-8">
-                <label className="mb-3 block text-lg font-medium">
-                  Resume
-                </label>
-
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.txt"
-                  onChange={(
-                    e
-                  ) =>
-                    e.target
-                      .files?.[0] &&
-                    parseResume(
-                      e.target
-                        .files[0]
-                    )
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4"
-                />
-              </div>
-
-              {/* JD */}
-              <div className="mt-8">
-                <label className="mb-3 block text-lg font-medium">
-                  Job Description
-                </label>
-
-                <textarea
-                  value={jdText}
-                  onChange={(
-                    e
-                  ) =>
-                    setJdText(
-                      e.target
-                        .value
-                    )
-                  }
-                  rows={8}
-                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
-                />
-              </div>
-
-              {/* PLAN */}
-              <div className="mt-8">
-                <label className="mb-3 block text-lg font-medium">
-                  Plan
-                </label>
-
-                <select
-                  value={plan}
-                  onChange={(
-                    e
-                  ) =>
-                    setPlan(
-                      e.target
-                        .value as InterviewPlan
-                    )
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
-                >
-                  <option value="FREE">
-                    FREE
-                  </option>
-
-                  <option value="PRO">
-                    PRO
-                  </option>
-
-                  <option value="PREMIUM">
-                    PREMIUM
-                  </option>
-                </select>
-              </div>
-
-              {/* ROUND */}
-              <div className="mt-8">
-                <label className="mb-3 block text-lg font-medium">
-                  Interview Type
-                </label>
-
-                <select
-                  value={round}
-                  onChange={(
-                    e
-                  ) =>
-                    setRound(
-                      e.target
-                        .value as InterviewRound
-                    )
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
-                >
-                  <option value="Technical">
-                    Technical
-                  </option>
-
-                  <option value="HR">
-                    HR
-                  </option>
-
-                  <option value="Mixed">
-                    Mixed
-                  </option>
-                </select>
-              </div>
-
-              {/* PERSONA */}
-              <div className="mt-8">
-                <label className="mb-3 block text-lg font-medium">
-                  Interviewer
-                </label>
-
-                <select
-                  value={persona}
-                  onChange={(
-                    e
-                  ) =>
-                    setPersona(
-                      e.target
-                        .value as InterviewPersona
-                    )
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
-                >
-                  <option>
-                    Strict Technical Lead
-                  </option>
-
-                  <option>
-                    Senior Engineering Manager
-                  </option>
-
-                  <option>
-                    Friendly HR
-                  </option>
-
-                  <option>
-                    Corporate VP
-                  </option>
-                </select>
-              </div>
-
-              <button
-                onClick={
-                  analyzeJd
-                }
-                className="mt-8 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
-              >
-                Analyze JD
-              </button>
-            </div>
-
-            <div className="glass rounded-2xl p-6">
-              <h2 className="text-2xl font-bold">
-                Parsed Resume
-              </h2>
-
-              <textarea
-                value={
-                  resume?.summary ||
-                  ""
-                }
-                onChange={(
-                  e
-                ) =>
-                  setResume({
-                    ...resume,
-                    summary:
-                      e.target
-                        .value,
-                  })
-                }
-                rows={5}
-                className="mt-4 w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
-              />
-
-              <div className="mt-4 text-sm text-slate-300">
-                <p>
-                  Skills:
-                </p>
-
-                <p className="mt-2">
-                  {resume?.skills?.join(
-                    ", "
-                  ) ||
-                    "No skills extracted."}
-                </p>
-              </div>
-            </div>
+            <InterviewSetup
+              resumeFile={
+                resumeFile
+              }
+              setResumeFile={
+                setResumeFile
+              }
+              jdText={jdText}
+              setJdText={
+                setJdText
+              }
+              difficulty={
+                difficulty
+              }
+              setDifficulty={
+                setDifficulty
+              }
+              round={round}
+              setRound={
+                setRound
+              }
+              plan={plan}
+              setPlan={setPlan}
+              persona={
+                persona
+              }
+              setPersona={
+                setPersona
+              }
+              parsedResume={
+                resume
+              }
+              onAnalyze={
+                analyzeJd
+              }
+              onStart={
+                startInterview
+              }
+              loading={
+                loading !==
+                ""
+              }
+              analyzing={
+                analyzing
+              }
+            />
           </div>
 
           {/* RIGHT */}
           <div className="space-y-6">
             <InterviewerAvatar
               persona={persona}
-              speaking={false}
-              listening={false}
-              ttsEnabled={true}
+              speaking={
+                speaking
+              }
+              listening={
+                listening
+              }
+              ttsEnabled={
+                voiceEnabled
+              }
               variant="compact"
-              onToggleTts={() => {}}
+              onToggleTts={() =>
+                setVoiceEnabled(
+                  !voiceEnabled
+                )
+              }
             />
 
-            <div className="glass rounded-2xl p-6">
-              {/* TOP */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg text-slate-400">
-                    Timer
-                  </p>
+            <VoiceControls
+              plan={plan}
+              listening={
+                listening
+              }
+              speaking={
+                speaking
+              }
+              voiceEnabled={
+                voiceEnabled
+              }
+              onToggleMic={() =>
+                setListening(
+                  !listening
+                )
+              }
+              onToggleVoice={() =>
+                setVoiceEnabled(
+                  !voiceEnabled
+                )
+              }
+            />
 
-                  <p className="text-5xl font-bold">
-                    {timerLabel}
-                  </p>
-                </div>
+            <InterviewSession
+              question={
+                question
+              }
+              answers={
+                answers
+              }
+              answer={answer}
+              setAnswer={
+                setAnswer
+              }
+              onSubmit={
+                submitAnswer
+              }
+              onSkip={() =>
+                submitAnswer()
+              }
+              loading={
+                loading !==
+                ""
+              }
+              secondsLeft={
+                secondsLeft
+              }
+            />
 
-                {!interviewStarted ? (
-                  <button
-                    onClick={
-                      startInterview
-                    }
-                    className="rounded-xl bg-white px-6 py-4 text-xl font-semibold text-black"
-                  >
-                    Start
-                  </button>
-                ) : (
-                  <button
-                    onClick={
-                      finishInterview
-                    }
-                    className="rounded-xl bg-red-500 px-6 py-4 text-xl font-semibold text-white"
-                  >
-                    Finish
-                  </button>
-                )}
-              </div>
-
-              {loading && (
-                <div className="mt-6 rounded-xl bg-white/10 p-4">
-                  {loading}
-                </div>
-              )}
-
-              {/* QUESTION */}
-              {question &&
-                !showCoding && (
-                  <div className="mt-8 rounded-2xl border border-white/10 bg-slate-950/70 p-6">
-                    <h2 className="text-xl font-bold">
-                      AI Interviewer
-                    </h2>
-
-                    <p className="mt-4 text-lg leading-8">
-                      {
-                        question.question
-                      }
-                    </p>
-
-                    <textarea
-                      value={
-                        answer
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setAnswer(
-                          e.target
-                            .value
-                        )
-                      }
-                      rows={6}
-                      placeholder="Write your answer..."
-                      className="mt-6 w-full rounded-xl border border-white/10 bg-slate-900 p-4"
-                    />
-
-                    <button
-                      onClick={
-                        submitAnswer
-                      }
-                      className="mt-6 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
-                    >
-                      Submit Answer
-                    </button>
-                  </div>
-                )}
-
-              {/* CODING */}
-              {showCoding && (
-                <div className="mt-8 rounded-2xl border border-emerald-500 bg-slate-950 p-6">
-                  <InterviewCodingRound
-  resume={resume}
-  jd={jd}
-  difficulty={difficulty}
-  onSolved={
-    handleCodingSolved
-  }
-/>
-                </div>
-              )}
-
-              {/* REPORT */}
-              {report && (
-                <div className="mt-8 rounded-2xl border border-white/10 bg-slate-950/70 p-6">
-                  <h2 className="text-3xl font-bold">
-                    Interview Report
-                  </h2>
-
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl bg-white/5 p-4">
-                      <p className="text-slate-400">
-                        Overall
-                      </p>
-
-                      <p className="text-4xl font-bold">
-                        {
-                          report.overallScore
-                        }
-                        %
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-white/5 p-4">
-                      <p className="text-slate-400">
-                        Technical
-                      </p>
-
-                      <p className="text-4xl font-bold">
-                        {
-                          report.technicalScore
-                        }
-                        %
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-white/5 p-4">
-                      <p className="text-slate-400">
-                        Communication
-                      </p>
-
-                      <p className="text-4xl font-bold">
-                        {
-                          report.communicationScore
-                        }
-                        %
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-white/5 p-4">
-                      <p className="text-slate-400">
-                        Confidence
-                      </p>
-
-                      <p className="text-4xl font-bold">
-                        {
-                          report.confidenceEstimate
-                        }
-                        %
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <InterviewReport
+              report={report}
+              plan={plan}
+            />
           </div>
         </div>
+
+        <InterviewCodingModal
+          open={showCoding}
+          challenge={
+            codingChallenge
+          }
+          onClose={() =>
+            setShowCoding(
+              false
+            )
+          }
+          onSolved={
+            handleCodingSolved
+          }
+        />
       </AppShell>
     </AuthGuard>
   );
