@@ -1,7 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   Play,
@@ -26,35 +31,45 @@ const Monaco = dynamic(
   { ssr: false }
 );
 
-const starters: Record<string, string> =
-  {
-    Python:
-      "import sys\n\n# Read input and print output\n\nprint('')",
+const starters: Record<
+  string,
+  string
+> = {
+  Python:
+    "import sys\n\nprint('')",
 
-    JavaScript:
-      "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf8');\n\nconsole.log('');",
+  JavaScript:
+    "const fs = require('fs');\nconst input = fs.readFileSync(0,'utf8');\nconsole.log('');",
 
-    Java:
-      'import java.util.*;\n\npublic class Main {\n  public static void main(String[] args) {\n    Scanner sc = new Scanner(System.in);\n    System.out.println("");\n  }\n}',
+  Java:
+    'import java.util.*;\n\npublic class Main {\n public static void main(String[] args){\n Scanner sc=new Scanner(System.in);\n System.out.println("");\n }\n}',
 
-    "C++":
-      '#include <bits/stdc++.h>\nusing namespace std;\n\nint main(){\n  ios::sync_with_stdio(false);\n  cin.tie(nullptr);\n\n  cout << "";\n\n  return 0;\n}',
+  "C++":
+    '#include <bits/stdc++.h>\nusing namespace std;\n\nint main(){\n cout<<"";\n return 0;\n}',
 
-    C: '#include <stdio.h>\n\nint main(){\n  printf("");\n  return 0;\n}',
-  };
+  C: '#include <stdio.h>\n\nint main(){\n printf("");\n return 0;\n}',
+};
 
 type TestResult = {
   input: string;
+
   expectedOutput: string;
+
   actualOutput: string;
+
   passed: boolean;
 };
 
 export function CodingWorkspace({
   initialResume,
+
   initialJd,
-  initialDifficulty = "Medium",
+
+  initialDifficulty =
+    "Medium",
+
   interviewMode = false,
+
   onInterviewSubmit,
 }: {
   initialResume?: ParsedResume;
@@ -69,7 +84,10 @@ export function CodingWorkspace({
     summary: string
   ) => void;
 }) {
-  const [challenge, setChallenge] =
+  const [
+    challenge,
+    setChallenge,
+  ] =
     useState<CodingChallenge | null>(
       null
     );
@@ -97,45 +115,52 @@ export function CodingWorkspace({
   const [secondsLeft, setSecondsLeft] =
     useState(0);
 
-  const [loadingQuestion, setLoadingQuestion] =
-    useState(false);
+  const [
+    loadingQuestion,
+    setLoadingQuestion,
+  ] = useState(false);
 
   useEffect(() => {
     loadChallenge();
   }, []);
 
   async function loadChallenge() {
-    setLoadingQuestion(true);
-
     try {
+      setLoadingQuestion(true);
+
       const generatedChallenge =
-        await createCodingChallenge({
-          resume: initialResume,
+        await createCodingChallenge(
+          {
+            resume:
+              initialResume,
 
-          jd: initialJd,
+            jd: initialJd,
 
-          difficulty:
-            initialDifficulty,
+            difficulty:
+              initialDifficulty,
 
-          interviewMode,
-        });
+            interviewMode,
+          }
+        );
 
       setChallenge(
         generatedChallenge
       );
 
       setSecondsLeft(
-        generatedChallenge.timeLimitSeconds
+        generatedChallenge.timeLimitSeconds ||
+          1800
       );
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoadingQuestion(false);
     }
   }
 
   useEffect(() => {
-    if (!challenge) return;
-
     if (
+      !challenge ||
       submitted ||
       secondsLeft <= 0
     )
@@ -143,17 +168,17 @@ export function CodingWorkspace({
 
     const timer =
       window.setInterval(() => {
-        setSecondsLeft((current) =>
-          Math.max(0, current - 1)
+        setSecondsLeft((prev) =>
+          Math.max(0, prev - 1)
         );
       }, 1000);
 
     return () =>
       window.clearInterval(timer);
   }, [
-    secondsLeft,
-    submitted,
     challenge,
+    submitted,
+    secondsLeft,
   ]);
 
   const timerLabel = useMemo(
@@ -171,11 +196,11 @@ export function CodingWorkspace({
 
     setResults([]);
 
+    setSubmitted(false);
+
     setOutput(
       "Run code to see output."
     );
-
-    setSubmitted(false);
 
     setCode(starters[language]);
   }
@@ -183,75 +208,94 @@ export function CodingWorkspace({
   async function runOne(
     stdin: string
   ) {
-    const response =
-      await fetch(
-        "/api/code/run",
-        {
-          method: "POST",
+    try {
+      const response =
+        await fetch(
+          "/api/code/run",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify({
-            language,
-            code,
-            stdin,
-          }),
-        }
-      );
+            body: JSON.stringify({
+              language,
+              code,
+              stdin,
+            }),
+          }
+        );
 
-    const data =
-      await response.json();
+      const data =
+        await response.json();
 
-    if (!response.ok) {
-      return (
-        data.error ||
-        "Execution failed."
-      );
+      if (!response.ok) {
+        return (
+          data.error ||
+          "Execution failed."
+        );
+      }
+
+      return String(
+        data.run?.stdout ||
+          data.run?.output ||
+          ""
+      ).trim();
+    } catch {
+      return "Execution failed.";
     }
-
-    return String(
-      data.run?.stdout ||
-        data.run?.output ||
-        ""
-    ).trim();
   }
 
   async function runTests(
-    markSubmitted = false
+    submit = false
   ) {
     if (!challenge) return;
 
-    setRunning(true);
-
     try {
-      const visibleCases =
-        markSubmitted
-          ? challenge.testCases
-          : challenge.testCases.slice(
-              0,
-              2
-            );
+      setRunning(true);
+
+      const cases = submit
+        ? challenge.testCases
+        : challenge.testCases.slice(
+            0,
+            2
+          );
 
       const nextResults: TestResult[] =
         [];
 
-      for (const testCase of visibleCases) {
+      for (const testCase of cases) {
         const actualOutput =
           await runOne(
-            testCase.input
+            String(
+              testCase.input
+            )
           );
 
         nextResults.push({
-          ...testCase,
+          input: String(
+            testCase.input
+          ),
 
-          actualOutput,
+          expectedOutput:
+            String(
+              testCase.expectedOutput
+            ),
+
+          actualOutput:
+            String(
+              actualOutput
+            ),
 
           passed:
-            actualOutput.trim() ===
-            testCase.expectedOutput.trim(),
+            String(
+              actualOutput
+            ).trim() ===
+            String(
+              testCase.expectedOutput
+            ).trim(),
         });
       }
 
@@ -259,14 +303,14 @@ export function CodingWorkspace({
 
       const passed =
         nextResults.filter(
-          (item) => item.passed
+          (r) => r.passed
         ).length;
 
       setOutput(
         `${passed}/${nextResults.length} test cases passed.`
       );
 
-      if (markSubmitted) {
+      if (submit) {
         setSubmitted(true);
 
         if (
@@ -276,7 +320,9 @@ export function CodingWorkspace({
             nextResults.length
         ) {
           onInterviewSubmit(
-            `${challenge.title} solved successfully`
+            `${String(
+              challenge.title
+            )} solved successfully`
           );
         }
       }
@@ -299,6 +345,7 @@ export function CodingWorkspace({
 
   return (
     <div className="min-h-screen bg-[#0f172a] p-6 text-white">
+      {/* HEADER */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Timer size={18} />
@@ -312,7 +359,9 @@ export function CodingWorkspace({
           onClick={
             generateNewQuestion
           }
-          disabled={loadingQuestion}
+          disabled={
+            loadingQuestion
+          }
           className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-black hover:bg-emerald-400"
         >
           <RefreshCw size={16} />
@@ -327,14 +376,23 @@ export function CodingWorkspace({
         {/* LEFT */}
         <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
           <h1 className="text-3xl font-bold">
-            {challenge.title}
+            {String(
+              challenge.title
+            )}
           </h1>
 
-          <p className="mt-4 text-lg leading-8 text-slate-300">
-            {challenge.prompt}
+          <p className="mt-4 whitespace-pre-wrap text-lg leading-8 text-slate-300">
+            {typeof challenge.prompt ===
+            "string"
+              ? challenge.prompt
+              : JSON.stringify(
+                  challenge.prompt,
+                  null,
+                  2
+                )}
           </p>
 
-          {/* Examples */}
+          {/* EXAMPLES */}
           <div className="mt-8">
             <h2 className="mb-4 text-xl font-semibold">
               Examples
@@ -342,7 +400,7 @@ export function CodingWorkspace({
 
             <div className="space-y-4">
               {challenge.testCases
-                .slice(0, 2)
+                ?.slice(0, 2)
                 .map(
                   (
                     testCase,
@@ -364,7 +422,14 @@ export function CodingWorkspace({
                           </p>
 
                           <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
-{testCase.input}
+{typeof testCase.input ===
+"string"
+  ? testCase.input
+  : JSON.stringify(
+      testCase.input,
+      null,
+      2
+    )}
                           </pre>
                         </div>
 
@@ -374,7 +439,14 @@ export function CodingWorkspace({
                           </p>
 
                           <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
-{testCase.expectedOutput}
+{typeof testCase.expectedOutput ===
+"string"
+  ? testCase.expectedOutput
+  : JSON.stringify(
+      testCase.expectedOutput,
+      null,
+      2
+    )}
                           </pre>
                         </div>
                       </div>
@@ -384,7 +456,7 @@ export function CodingWorkspace({
             </div>
           </div>
 
-          {/* Constraints */}
+          {/* CONSTRAINTS */}
           <div className="mt-8 rounded-xl bg-slate-950 p-4">
             <h2 className="mb-3 text-lg font-semibold">
               Constraints
@@ -406,7 +478,8 @@ export function CodingWorkspace({
               </li>
 
               <li>
-                Expected interview-style
+                Expected
+                interview-style
                 solution
               </li>
             </ul>
@@ -493,18 +566,18 @@ export function CodingWorkspace({
             </button>
           </div>
 
-          {/* Results */}
+          {/* OUTPUT */}
           <div className="mt-6 rounded-xl bg-black/40 p-4">
             <p className="mb-3 font-semibold">
               Console Output
             </p>
 
             <pre className="whitespace-pre-wrap text-sm text-slate-300">
-              {output}
+              {String(output)}
             </pre>
           </div>
 
-          {/* Visible Cases */}
+          {/* RESULTS */}
           {results.length > 0 && (
             <div className="mt-6 space-y-4">
               {results.map(
@@ -542,7 +615,9 @@ export function CodingWorkspace({
                         </p>
 
                         <pre className="rounded bg-black/40 p-2">
-{result.input}
+{String(
+  result.input
+)}
                         </pre>
                       </div>
 
@@ -552,7 +627,9 @@ export function CodingWorkspace({
                         </p>
 
                         <pre className="rounded bg-black/40 p-2">
-{result.expectedOutput}
+{String(
+  result.expectedOutput
+)}
                         </pre>
                       </div>
 
@@ -562,7 +639,9 @@ export function CodingWorkspace({
                         </p>
 
                         <pre className="rounded bg-black/40 p-2">
-{result.actualOutput}
+{String(
+  result.actualOutput
+)}
                         </pre>
                       </div>
                     </div>
