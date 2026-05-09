@@ -96,7 +96,7 @@ export function InterviewCodingModal({
               code,
 
               prompt:
-                challenge.prompt,
+    challenge?.prompt || "",
             }),
           }
         );
