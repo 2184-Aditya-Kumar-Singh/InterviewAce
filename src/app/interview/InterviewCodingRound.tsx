@@ -75,7 +75,7 @@ export function InterviewCodingRound({
   difficulty?: Difficulty;
 
   onSolved: (
-    summary: string
+    summary?: string
   ) => void;
 }) {
   const [
