@@ -83,13 +83,19 @@ useEffect(() => {
   data?.plan === "PRO" ||
   data?.plan === "PREMIUM"
 ) {
-  setPlan(data.plan);
+  setPlan(
+  data.plan as InterviewPlan
+);
 
-  setSubscribedPlan(data.plan);
+setSubscribedPlan(
+  data.plan as InterviewPlan
+);
 
-  setSecondsLeft(
-    planDuration[data.plan]
-  );
+setSecondsLeft(
+  planDuration[
+    data.plan as InterviewPlan
+  ]
+);
 }
     } catch (err) {
       console.error(err);
