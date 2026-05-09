@@ -99,14 +99,15 @@ export function InterviewCodingModal({
           },
 
           body: JSON.stringify({
-            language:
-              "JavaScript",
+  language:
+    "JavaScript",
 
-            code,
+  code,
 
-            prompt:
-              challenge.prompt,
-          }),
+  prompt:
+    challenge?.prompt ||
+    "",
+}),
         }
       );
 
