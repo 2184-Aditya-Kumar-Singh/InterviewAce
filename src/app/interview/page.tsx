@@ -3,19 +3,24 @@
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
-
 import { AuthGuard } from "@/components/AuthGuard";
-
-import { CodingWorkspace } from "@/components/CodingWorkspace";
-
 import { InterviewerAvatar } from "@/components/InterviewerAvatar";
+import { CodingWorkspace } from "@/components/CodingWorkspace";
 
 import { supabase } from "@/lib/supabase";
 
+import {
+  generateQuestion,
+  createInterviewReport,
+} from "@/lib/interview-engine";
+
 import type {
   Difficulty,
+  InterviewAnswer,
   InterviewPlan,
   InterviewPersona,
+  InterviewQuestion,
+  InterviewReport,
   InterviewRound,
   JDAnalysis,
   ParsedResume,
@@ -24,13 +29,9 @@ import type {
 const blankResume: ParsedResume =
   {
     rawText: "",
-
     skills: [],
-
     education: [],
-
     projects: [],
-
     summary: "",
   };
 
@@ -38,11 +39,9 @@ const planDuration: Record<
   InterviewPlan,
   number
 > = {
-  FREE: 600,
-
+  FREE: 900,
   PRO: 1800,
-
-  PREMIUM: 1800,
+  PREMIUM: 2700,
 };
 
 export default function InterviewPage() {
@@ -57,6 +56,11 @@ export default function InterviewPage() {
   const [jd, setJd] =
     useState<JDAnalysis | null>(
       null
+    );
+
+  const [plan, setPlan] =
+    useState<InterviewPlan>(
+      "FREE"
     );
 
   const [difficulty, setDifficulty] =
@@ -74,18 +78,46 @@ export default function InterviewPage() {
       "Friendly HR"
     );
 
-  const [plan, setPlan] =
-    useState<InterviewPlan>(
-      "FREE"
+  const [loading, setLoading] =
+    useState("");
+
+  const [
+    interviewStarted,
+    setInterviewStarted,
+  ] = useState(false);
+
+  const [question, setQuestion] =
+    useState<InterviewQuestion | null>(
+      null
+    );
+
+  const [answer, setAnswer] =
+    useState("");
+
+  const [answers, setAnswers] =
+    useState<
+      InterviewAnswer[]
+    >([]);
+
+  const [report, setReport] =
+    useState<InterviewReport | null>(
+      null
     );
 
   const [
     secondsLeft,
     setSecondsLeft,
-  ] = useState(600);
+  ] = useState(1800);
 
-  const [loading, setLoading] =
-    useState("");
+  const [
+    showCoding,
+    setShowCoding,
+  ] = useState(false);
+
+  const [
+    codingSolved,
+    setCodingSolved,
+  ] = useState(false);
 
   useEffect(() => {
     async function loadPlan() {
@@ -113,13 +145,13 @@ export default function InterviewPage() {
             "PREMIUM"
         ) {
           const userPlan =
-  data.plan as InterviewPlan;
+            data.plan as InterviewPlan;
 
-setPlan(userPlan);
+          setPlan(userPlan);
 
-setSecondsLeft(
-  planDuration[userPlan]
-);
+          setSecondsLeft(
+            planDuration[userPlan]
+          );
         }
       } catch (err) {
         console.error(err);
@@ -130,18 +162,22 @@ setSecondsLeft(
   }, []);
 
   useEffect(() => {
+    if (!interviewStarted)
+      return;
+
     const timer =
       setInterval(() => {
-        setSecondsLeft((prev) =>
-          prev > 0
-            ? prev - 1
-            : 0
+        setSecondsLeft(
+          (prev) =>
+            prev > 0
+              ? prev - 1
+              : 0
         );
       }, 1000);
 
     return () =>
       clearInterval(timer);
-  }, []);
+  }, [interviewStarted]);
 
   async function parseResume(
     file: File
@@ -264,6 +300,126 @@ setSecondsLeft(
     }
   }
 
+  async function startInterview() {
+    if (!jd) {
+      alert(
+        "Please analyze JD first."
+      );
+
+      return;
+    }
+
+    setInterviewStarted(true);
+
+    const firstQuestion =
+      await generateQuestion({
+        resume,
+        jd,
+        difficulty,
+        round,
+        persona,
+        plan,
+        asked: [],
+      });
+
+    setQuestion(firstQuestion);
+  }
+
+  async function submitAnswer() {
+    if (!question) return;
+
+    const nextAnswers = [
+      ...answers,
+
+      {
+        question:
+          question.question,
+
+        answer,
+
+        round:
+          question.round,
+
+        expectedSignals:
+          question.expectedSignals,
+      },
+    ];
+
+    setAnswers(nextAnswers);
+
+    setAnswer("");
+
+    if (
+      round !== "HR" &&
+      Math.random() > 0.65 &&
+      !codingSolved
+    ) {
+      setShowCoding(true);
+
+      setSecondsLeft(600);
+
+      return;
+    }
+
+    const nextQuestion =
+      await generateQuestion({
+        resume,
+        jd,
+        difficulty,
+        round,
+        persona,
+        plan,
+        asked:
+          nextAnswers.map(
+            (a) => a.question
+          ),
+      });
+
+    setQuestion(nextQuestion);
+  }
+
+  async function finishInterview() {
+    const generatedReport =
+      await createInterviewReport({
+        answers,
+        difficulty,
+        jd:
+          jd || undefined,
+        resume,
+      });
+
+    setReport(
+      generatedReport
+    );
+  }
+
+  async function handleCodingSolved() {
+    setShowCoding(false);
+
+    setCodingSolved(true);
+
+    setSecondsLeft(
+      planDuration[plan]
+    );
+
+    const nextQuestion =
+      await generateQuestion({
+        resume,
+        jd:
+          jd as JDAnalysis,
+        difficulty,
+        round,
+        persona,
+        plan,
+        asked:
+          answers.map(
+            (a) => a.question
+          ),
+      });
+
+    setQuestion(nextQuestion);
+  }
+
   const timerLabel = `${Math.floor(
     secondsLeft / 60
   )}:${String(
@@ -281,6 +437,7 @@ setSecondsLeft(
                 Interview Setup
               </h1>
 
+              {/* Resume */}
               <div className="mt-8">
                 <label className="mb-3 block text-lg font-medium">
                   Resume
@@ -303,6 +460,7 @@ setSecondsLeft(
                 />
               </div>
 
+              {/* JD */}
               <div className="mt-8">
                 <label className="mb-3 block text-lg font-medium">
                   Job Description
@@ -318,16 +476,116 @@ setSecondsLeft(
                         .value
                     )
                   }
-                  rows={10}
+                  rows={8}
                   className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
                 />
+              </div>
+
+              {/* PLAN */}
+              <div className="mt-8">
+                <label className="mb-3 block text-lg font-medium">
+                  Plan
+                </label>
+
+                <select
+                  value={plan}
+                  onChange={(
+                    e
+                  ) =>
+                    setPlan(
+                      e.target
+                        .value as InterviewPlan
+                    )
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
+                >
+                  <option value="FREE">
+                    FREE
+                  </option>
+
+                  <option value="PRO">
+                    PRO
+                  </option>
+
+                  <option value="PREMIUM">
+                    PREMIUM
+                  </option>
+                </select>
+              </div>
+
+              {/* ROUND */}
+              <div className="mt-8">
+                <label className="mb-3 block text-lg font-medium">
+                  Interview Type
+                </label>
+
+                <select
+                  value={round}
+                  onChange={(
+                    e
+                  ) =>
+                    setRound(
+                      e.target
+                        .value as InterviewRound
+                    )
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
+                >
+                  <option value="Technical">
+                    Technical
+                  </option>
+
+                  <option value="HR">
+                    HR
+                  </option>
+
+                  <option value="Mixed">
+                    Mixed
+                  </option>
+                </select>
+              </div>
+
+              {/* PERSONA */}
+              <div className="mt-8">
+                <label className="mb-3 block text-lg font-medium">
+                  Interviewer
+                </label>
+
+                <select
+                  value={persona}
+                  onChange={(
+                    e
+                  ) =>
+                    setPersona(
+                      e.target
+                        .value as InterviewPersona
+                    )
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/70 p-4"
+                >
+                  <option>
+                    Strict Technical Lead
+                  </option>
+
+                  <option>
+                    Senior Engineering Manager
+                  </option>
+
+                  <option>
+                    Friendly HR
+                  </option>
+
+                  <option>
+                    Corporate VP
+                  </option>
+                </select>
               </div>
 
               <button
                 onClick={
                   analyzeJd
                 }
-                className="mt-6 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
+                className="mt-8 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
               >
                 Analyze JD
               </button>
@@ -369,33 +627,6 @@ setSecondsLeft(
                     "No skills extracted."}
                 </p>
               </div>
-
-              {jd && (
-                <div className="mt-6 rounded-xl bg-emerald-500/10 p-4">
-                  <p className="font-semibold text-emerald-300">
-                    {jd?.role} Match:
-                    {" "}
-                    {jd?.matchPercent}
-                    %
-                  </p>
-
-                  <p className="mt-3 text-sm">
-                    Required:
-                    {" "}
-                    {jd?.requiredSkills?.join(
-                      ", "
-                    )}
-                  </p>
-
-                  <p className="mt-2 text-sm">
-                    Missing:
-                    {" "}
-                    {jd?.missingSkills?.join(
-                      ", "
-                    )}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -411,6 +642,7 @@ setSecondsLeft(
             />
 
             <div className="glass rounded-2xl p-6">
+              {/* TOP */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-lg text-slate-400">
@@ -422,9 +654,25 @@ setSecondsLeft(
                   </p>
                 </div>
 
-                <button className="rounded-xl bg-white px-6 py-4 text-xl font-semibold text-black">
-                  Start
-                </button>
+                {!interviewStarted ? (
+                  <button
+                    onClick={
+                      startInterview
+                    }
+                    className="rounded-xl bg-white px-6 py-4 text-xl font-semibold text-black"
+                  >
+                    Start
+                  </button>
+                ) : (
+                  <button
+                    onClick={
+                      finishInterview
+                    }
+                    className="rounded-xl bg-red-500 px-6 py-4 text-xl font-semibold text-white"
+                  >
+                    Finish
+                  </button>
+                )}
               </div>
 
               {loading && (
@@ -433,17 +681,131 @@ setSecondsLeft(
                 </div>
               )}
 
-              <div className="mt-8">
-                <CodingWorkspace
-                  initialResume={
-                    resume
-                  }
-                  initialJd={jd}
-                  initialDifficulty={
-                    difficulty
-                  }
-                />
-              </div>
+              {/* QUESTION */}
+              {question &&
+                !showCoding && (
+                  <div className="mt-8 rounded-2xl border border-white/10 bg-slate-950/70 p-6">
+                    <h2 className="text-xl font-bold">
+                      AI Interviewer
+                    </h2>
+
+                    <p className="mt-4 text-lg leading-8">
+                      {
+                        question.question
+                      }
+                    </p>
+
+                    <textarea
+                      value={
+                        answer
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setAnswer(
+                          e.target
+                            .value
+                        )
+                      }
+                      rows={6}
+                      placeholder="Write your answer..."
+                      className="mt-6 w-full rounded-xl border border-white/10 bg-slate-900 p-4"
+                    />
+
+                    <button
+                      onClick={
+                        submitAnswer
+                      }
+                      className="mt-6 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-semibold text-black"
+                    >
+                      Submit Answer
+                    </button>
+                  </div>
+                )}
+
+              {/* CODING */}
+              {showCoding && (
+                <div className="mt-8 rounded-2xl border border-emerald-500 bg-slate-950 p-6">
+                  <CodingWorkspace
+                    initialResume={
+                      resume
+                    }
+                    initialJd={jd}
+                    initialDifficulty={
+                      difficulty
+                    }
+                    interviewMode={
+                      true
+                    }
+                    onInterviewSubmit={
+                      handleCodingSolved
+                    }
+                  />
+                </div>
+              )}
+
+              {/* REPORT */}
+              {report && (
+                <div className="mt-8 rounded-2xl border border-white/10 bg-slate-950/70 p-6">
+                  <h2 className="text-3xl font-bold">
+                    Interview Report
+                  </h2>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl bg-white/5 p-4">
+                      <p className="text-slate-400">
+                        Overall
+                      </p>
+
+                      <p className="text-4xl font-bold">
+                        {
+                          report.overallScore
+                        }
+                        %
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/5 p-4">
+                      <p className="text-slate-400">
+                        Technical
+                      </p>
+
+                      <p className="text-4xl font-bold">
+                        {
+                          report.technicalScore
+                        }
+                        %
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/5 p-4">
+                      <p className="text-slate-400">
+                        Communication
+                      </p>
+
+                      <p className="text-4xl font-bold">
+                        {
+                          report.communicationScore
+                        }
+                        %
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/5 p-4">
+                      <p className="text-slate-400">
+                        Confidence
+                      </p>
+
+                      <p className="text-4xl font-bold">
+                        {
+                          report.confidenceEstimate
+                        }
+                        %
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
