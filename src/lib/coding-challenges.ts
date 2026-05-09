@@ -76,7 +76,13 @@ Requirements:
 - Difficulty: ${difficulty}
 - Experience Level: ${experienceLevel}
 
-Return ONLY valid JSON in this format:
+Return ONLY RAW JSON.
+
+Do NOT wrap response in markdown.
+Do NOT use ```json.
+Do NOT explain anything.
+
+Use this format:
 
 {
   "title": "",
@@ -119,7 +125,7 @@ Rules:
           },
         ],
 
-        temperature: 0.9,
+       temperature: 1,
       });
 
     const text =
@@ -131,8 +137,15 @@ Rules:
       );
     }
 
-    const parsed =
-      JSON.parse(text) as CodingChallenge;
+    console.log("RAW AI RESPONSE:", text);
+
+const cleaned = text
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+const parsed =
+  JSON.parse(cleaned) as CodingChallenge;
 
     return {
       ...parsed,
