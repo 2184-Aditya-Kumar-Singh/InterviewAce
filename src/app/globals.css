@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09111f;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.glass {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.25);
+  backdrop-filter: blur(18px);
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.38);
+}
+
+@keyframes talk {
+  0%,
+  100% {
+    height: 0.35rem;
+    transform: translateX(-50%) scaleX(0.9);
+  }
+  50% {
+    height: 0.9rem;
+    transform: translateX(-50%) scaleX(1.12);
+  }
+}
+
+@keyframes human_speak {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  35% {
+    transform: translateY(-4px) rotate(-0.7deg);
+  }
+  70% {
+    transform: translateY(2px) rotate(0.6deg);
+  }
+}
+
+@keyframes human_listen {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(3px) rotate(0.8deg) scale(1.01);
+  }
+}
+
+@keyframes left_hand {
+  0%,
+  100% {
+    transform: rotate(18deg) translateY(0);
+  }
+  50% {
+    transform: rotate(34deg) translateY(-8px);
+  }
+}
+
+@keyframes right_hand {
+  0%,
+  100% {
+    transform: rotate(-18deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-34deg) translateY(-8px);
+  }
+}
+
+@keyframes listen_hand {
+  0%,
+  100% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(16deg) translateY(3px);
+  }
+}
