@@ -272,6 +272,7 @@ setSecondsLeft(
       role: jd?.role || "Mock interview",
       createdAt: new Date().toISOString(),
     };
+    if (!supabase) return;
     const {
   data: { user },
 } = await supabase.auth.getUser();
