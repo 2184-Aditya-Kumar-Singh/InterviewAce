@@ -39,8 +39,6 @@ import { InterviewCodingModal } from "./components/InterviewCodingModal";
 
 import { InterviewReport } from "./components/InterviewReport";
 
-import { VoiceControls } from "./components/VoiceControls";
-
 const blankResume: ParsedResume =
   {
     rawText: "",
@@ -161,10 +159,7 @@ export default function InterviewPage() {
   const [
     voiceEnabled,
     setVoiceEnabled,
-  ] = useState(false);
-
-  const [listening, setListening] =
-    useState(false);
+  ] = useState(true);
 
   const [speaking, setSpeaking] =
     useState(false);
@@ -239,6 +234,53 @@ export default function InterviewPage() {
     }
   }, [resumeFile]);
 
+  useEffect(() => {
+    if (
+      !voiceEnabled ||
+      !question
+    )
+      return;
+
+    if (
+      plan !== "PREMIUM"
+    )
+      return;
+
+    speechSynthesis.cancel();
+
+    const utterance =
+      new SpeechSynthesisUtterance(
+        typeof question.question ===
+        "string"
+          ? question.question
+          : "Tell me about yourself."
+      );
+
+    utterance.rate = 1;
+
+    utterance.pitch = 1;
+
+    utterance.onstart =
+      () =>
+        setSpeaking(
+          true
+        );
+
+    utterance.onend =
+      () =>
+        setSpeaking(
+          false
+        );
+
+    speechSynthesis.speak(
+      utterance
+    );
+  }, [
+    question,
+    voiceEnabled,
+    plan,
+  ]);
+
   async function parseResume(
     file: File
   ) {
@@ -291,10 +333,6 @@ export default function InterviewPage() {
       });
     } catch (err) {
       console.error(err);
-
-      alert(
-        "Could not parse resume."
-      );
     } finally {
       setLoading("");
     }
@@ -351,10 +389,6 @@ export default function InterviewPage() {
       });
     } catch (err) {
       console.error(err);
-
-      alert(
-        "Could not analyze JD."
-      );
     } finally {
       setAnalyzing(false);
     }
@@ -389,6 +423,74 @@ export default function InterviewPage() {
       });
 
     setQuestion(firstQuestion);
+  }
+
+  async function skipQuestion() {
+    if (!question) return;
+
+    const nextAnswers = [
+      ...answers,
+
+      {
+        questionId:
+          question.id,
+
+        question:
+          question.question,
+
+        answer:
+          "I don't know.",
+
+        secondsSpent: 0,
+
+        round:
+          question.round,
+
+        expectedSignals:
+          question.expectedSignals,
+      },
+    ];
+
+    setAnswers(nextAnswers);
+
+    const nextQuestion =
+      await generateQuestion({
+        resume,
+
+        jd:
+          jd || {
+            role:
+              "Software Engineer",
+
+            summary: "",
+
+            matchPercent: 0,
+
+            requiredSkills:
+              [],
+
+            missingSkills:
+              [],
+          },
+
+        difficulty,
+
+        round,
+
+        persona,
+
+        plan,
+
+        asked:
+          nextAnswers.map(
+            (a) =>
+              a.question
+          ),
+      });
+
+    setQuestion(
+      nextQuestion
+    );
   }
 
   async function submitAnswer() {
@@ -463,8 +565,6 @@ export default function InterviewPage() {
 
         setShowCoding(true);
 
-        setSecondsLeft(600);
-
         return;
       } catch (err) {
         console.error(err);
@@ -532,16 +632,10 @@ export default function InterviewPage() {
     );
   }
 
-  async function handleCodingSolved(
-    summary?: string
-  ) {
+  async function handleCodingSolved() {
     setShowCoding(false);
 
     setCodingSolved(true);
-
-    setSecondsLeft(
-      planDuration[plan]
-    );
 
     const nextQuestion =
       await generateQuestion({
@@ -632,36 +726,18 @@ export default function InterviewPage() {
                 speaking
               }
               listening={
-                listening
+                !speaking
               }
               ttsEnabled={
                 voiceEnabled
               }
-              variant="compact"
+              variant={
+                plan ===
+                "PREMIUM"
+                  ? "call"
+                  : "compact"
+              }
               onToggleTts={() =>
-                setVoiceEnabled(
-                  !voiceEnabled
-                )
-              }
-            />
-
-            <VoiceControls
-              plan={plan}
-              listening={
-                listening
-              }
-              speaking={
-                speaking
-              }
-              voiceEnabled={
-                voiceEnabled
-              }
-              onToggleMic={() =>
-                setListening(
-                  !listening
-                )
-              }
-              onToggleVoice={() =>
                 setVoiceEnabled(
                   !voiceEnabled
                 )
@@ -682,8 +758,8 @@ export default function InterviewPage() {
               onSubmit={
                 submitAnswer
               }
-              onSkip={() =>
-                submitAnswer()
+              onSkip={
+                skipQuestion
               }
               loading={
                 loading !==
@@ -692,7 +768,22 @@ export default function InterviewPage() {
               secondsLeft={
                 secondsLeft
               }
+              premium={
+                plan ===
+                "PREMIUM"
+              }
             />
+
+            {interviewStarted && (
+              <button
+                onClick={
+                  finishInterview
+                }
+                className="rounded-2xl bg-white px-7 py-4 font-black text-slate-950"
+              >
+                Finish Interview
+              </button>
+            )}
 
             <InterviewReport
               report={report}
