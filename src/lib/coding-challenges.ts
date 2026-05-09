@@ -79,7 +79,7 @@ Requirements:
 Return ONLY RAW JSON.
 
 Do NOT wrap response in markdown.
-Do NOT use ```json.
+Do NOT use markdown code blocks.
 Do NOT explain anything.
 
 Use this format:
