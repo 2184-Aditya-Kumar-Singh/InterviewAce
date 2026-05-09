@@ -11,9 +11,9 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function finishAuth() {
       if (!supabase) {
-        router.replace("/dashboard");
-        return;
-      }
+  router.replace("/auth?error=Authentication%20service%20unavailable");
+  return;
+}
       const url = new URL(window.location.href);
       if (url.searchParams.get("error")) {
         router.replace(`/auth?error=${encodeURIComponent(url.searchParams.get("error_description") || "Sign in failed")}`);
