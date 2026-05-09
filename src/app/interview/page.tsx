@@ -61,7 +61,40 @@ export default function InterviewPage() {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const premiumVoiceOnly = plan === "PREMIUM";
+useEffect(() => {
+  async function loadPlan() {
+    try {
+      if (!supabase) return;
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("users")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      if (
+        data?.plan === "FREE" ||
+        data?.plan === "PRO" ||
+        data?.plan === "PREMIUM"
+      ) {
+        setPlan(data.plan);
+        setSecondsLeft(
+          planDuration[data.plan]
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  loadPlan();
+}, []);
   useEffect(() => {
     if (!question || report || secondsLeft <= 0) return;
     const timer = window.setInterval(() => {
