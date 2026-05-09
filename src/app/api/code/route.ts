@@ -25,7 +25,13 @@ Requirements:
 - Difficulty: ${difficulty}
 - Experience: ${experienceLevel}
 
-Return ONLY valid JSON in this format:
+Return ONLY RAW JSON.
+
+DO NOT wrap response in markdown.
+DO NOT use \`\`\`json.
+DO NOT explain anything.
+
+Format:
 
 {
   "title": "",
@@ -46,39 +52,56 @@ Rules:
 - Create unique interview-style problem
 - Similar to LeetCode/company OA
 - Include proper constraints
-- Avoid extremely easy questions
-- Do NOT include markdown
+- Avoid trivial problems
 `;
 
     const response =
       await client.chat.completions.create({
         model: "gpt-4o-mini",
+
         messages: [
           {
             role: "system",
             content:
               "You are an expert coding interview generator.",
           },
+
           {
             role: "user",
             content: prompt,
           },
         ],
-        temperature: 0.9,
+
+        temperature: 1,
       });
 
     const text =
-      response.choices[0].message.content;
+      response.choices[0].message.content || "";
+
+    console.log("AI RESPONSE:", text);
+
+    // CLEAN MARKDOWN IF AI ADDS IT
+    const cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     let parsed;
 
     try {
-      parsed = JSON.parse(text || "{}");
-    } catch {
+      parsed = JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error(
+        "JSON Parse Error:",
+        parseError
+      );
+
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid AI response",
+          error:
+            "Invalid AI response format",
+          raw: cleaned,
         },
         { status: 500 }
       );
