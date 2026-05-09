@@ -22,55 +22,118 @@ const schema = z.object({
     "JavaScript",
   ]),
 
-  code: z.string().min(1).max(50_000),
+  code: z
+    .string()
+    .min(1)
+    .max(50_000),
 
-  prompt: z.string().max(5_000),
+  prompt: z
+    .string()
+    .max(10_000),
 });
 
-function mockReview(code: string) {
-  const hasHashMap =
-    /map|dict|unordered_map|HashMap|object|Map/i.test(
-      code
+function mockReview(
+  code: string
+) {
+  const normalized =
+    code.toLowerCase();
+
+  const hasMap =
+    /map|hashmap|unordered_map|dict|object|set/i.test(
+      normalized
     );
 
-  const score = hasHashMap
-    ? 82
-    : 64;
+  const hasLoop =
+    /for|while/i.test(
+      normalized
+    );
+
+  const nestedLoop =
+    /(for[\s\S]*for)|(while[\s\S]*while)/i.test(
+      normalized
+    );
+
+  const hasFunction =
+    /function|def|public|class/i.test(
+      normalized
+    );
+
+  const hasComments =
+    /\/\/|#|\/\*/.test(
+      normalized
+    );
+
+  let score = 45;
+
+  if (hasFunction)
+    score += 10;
+
+  if (hasLoop)
+    score += 10;
+
+  if (hasMap)
+    score += 18;
+
+  if (hasComments)
+    score += 5;
+
+  if (nestedLoop)
+    score -= 12;
+
+  score = Math.max(
+    20,
+    Math.min(95, score)
+  );
 
   return {
     score,
 
-    correctness: hasHashMap
-      ? 85
-      : 62,
+    correctness:
+      score >= 75
+        ? 84
+        : score >= 60
+        ? 68
+        : 45,
 
-    timeComplexity: hasHashMap
-      ? "O(n)"
-      : "Likely O(n^2)",
+    timeComplexity:
+      nestedLoop
+        ? "O(n²)"
+        : hasMap
+        ? "O(n)"
+        : "O(n log n)",
 
-    spaceComplexity: hasHashMap
-      ? "O(n)"
-      : "O(1)",
+    spaceComplexity:
+      hasMap
+        ? "O(n)"
+        : "O(1)",
 
     readability:
-      code.length > 80 ? 78 : 58,
+      hasComments
+        ? 82
+        : 62,
 
-    edgeCases: hasHashMap
-      ? 76
-      : 50,
+    edgeCases:
+      score >= 75
+        ? 80
+        : 55,
 
-    optimization: hasHashMap
-      ? "Good use of lookup storage."
-      : "Use a hash map to reduce nested loops.",
+    optimization:
+      hasMap
+        ? "Good use of optimized lookup-based approach."
+        : nestedLoop
+        ? "Current solution may become slow for large inputs."
+        : "Can be optimized further using better data structures.",
 
     suggestions: [
-      hasHashMap
-        ? "Add comments explaining the lookup invariant."
-        : "Replace brute force with a hash map.",
+      nestedLoop
+        ? "Avoid nested loops where possible."
+        : "Good attempt on optimization.",
 
-      "Handle empty arrays and no-solution cases explicitly.",
+      "Handle null, empty, and edge cases explicitly.",
 
-      "Mention complexity in your final explanation.",
+      "Explain time complexity clearly during interviews.",
+
+      "Improve variable naming for readability.",
     ],
   };
 }
@@ -78,45 +141,77 @@ function mockReview(code: string) {
 export async function POST(
   request: NextRequest
 ) {
-  const limited = rateLimit(
-    `code-review:${
-      request.headers.get(
-        "x-forwarded-for"
-      ) || "local"
-    }`,
-    8,
-    60_000
-  );
+  const limited =
+    rateLimit(
+      `code-review:${
+        request.headers.get(
+          "x-forwarded-for"
+        ) || "local"
+      }`,
+      8,
+      60_000
+    );
 
-  if (limited) return limited;
+  if (limited)
+    return limited;
 
-  const parsed = schema.safeParse(
-    await request.json()
-  );
+  const parsed =
+    schema.safeParse(
+      await request.json()
+    );
 
-  if (!parsed.success) {
+  if (
+    !parsed.success
+  ) {
     return NextResponse.json(
       {
         error:
           "Invalid code review request.",
       },
-      { status: 400 }
+      {
+        status: 400,
+      }
     );
   }
 
-  if (!process.env.GROQ_API_KEY) {
+  const {
+    code,
+    prompt,
+    language,
+  } = parsed.data;
+
+  if (
+    !process.env
+      .GROQ_API_KEY
+  ) {
     return NextResponse.json({
-      review: mockReview(
-        parsed.data.code
-      ),
+      review:
+        mockReview(code),
     });
   }
 
   try {
-    const prompt = `
-Review this coding interview submission.
+    const aiPrompt = `
+You are an expert FAANG-level coding interviewer.
+
+Analyze this coding interview submission realistically.
+
+Judge:
+- correctness
+- optimization
+- edge cases
+- readability
+- interview readiness
+- time complexity
+- brute force vs optimized thinking
+
+Be strict and realistic.
+
+If the code is weak, score low.
 
 Return ONLY RAW JSON.
+
+FORMAT:
 
 {
   "score": 0,
@@ -129,68 +224,97 @@ Return ONLY RAW JSON.
   "suggestions": []
 }
 
-Submission:
-${JSON.stringify(parsed.data)}
+QUESTION:
+${prompt}
+
+LANGUAGE:
+${language}
+
+CODE:
+${code}
 `;
 
     const response =
-      await client.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+      await client.chat.completions.create(
+        {
+          model:
+            "llama-3.3-70b-versatile",
 
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert coding interview reviewer. Return ONLY valid JSON.",
-          },
+          messages: [
+            {
+              role:
+                "system",
 
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
+              content:
+                "You are a strict senior coding interviewer. Return ONLY valid JSON.",
+            },
 
-        temperature: 0.5,
-      });
+            {
+              role:
+                "user",
+
+              content:
+                aiPrompt,
+            },
+          ],
+
+          temperature: 0.3,
+        }
+      );
 
     const text =
       response.choices[0]
-        ?.message?.content || "";
+        ?.message
+        ?.content || "";
 
     console.log(
-      "GROQ REVIEW RESPONSE:",
+      "GROQ REVIEW:",
       text
     );
 
-    const cleaned = text
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    const cleaned =
+      text
+        .replace(
+          /```json/g,
+          ""
+        )
+        .replace(
+          /```/g,
+          ""
+        )
+        .trim();
 
     let review;
 
     try {
       review =
-        JSON.parse(cleaned);
-    } catch (parseError) {
+        JSON.parse(
+          cleaned
+        );
+    } catch (
+      parseError
+    ) {
       console.error(
-        "JSON Parse Error:",
+        "JSON PARSE ERROR:",
         parseError
       );
 
       return NextResponse.json({
-        review: mockReview(
-          parsed.data.code
-        ),
+        review:
+          mockReview(
+            code
+          ),
       });
     }
 
     return NextResponse.json({
       review:
-        Object.keys(review).length
+        Object.keys(
+          review
+        ).length > 0
           ? review
           : mockReview(
-              parsed.data.code
+              code
             ),
     });
   } catch (err) {
@@ -200,9 +324,8 @@ ${JSON.stringify(parsed.data)}
     );
 
     return NextResponse.json({
-      review: mockReview(
-        parsed.data.code
-      ),
+      review:
+        mockReview(code),
     });
   }
 }
