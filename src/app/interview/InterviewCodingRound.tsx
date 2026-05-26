@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -107,9 +108,42 @@ export function InterviewCodingRound({
   const [secondsLeft, setSecondsLeft] =
     useState(600);
 
+  const loadChallenge =
+    useCallback(async () => {
+    try {
+      const generatedChallenge =
+        await createCodingChallenge(
+          {
+            resume,
+
+            jd,
+
+            difficulty:
+              difficulty ||
+              "Medium",
+
+            interviewMode:
+              true,
+          }
+        );
+
+      setChallenge(
+        generatedChallenge
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  }, [
+    resume,
+    jd,
+    difficulty,
+  ]);
+
   useEffect(() => {
-    loadChallenge();
-  }, []);
+    queueMicrotask(() => {
+      loadChallenge();
+    });
+  }, [loadChallenge]);
 
   useEffect(() => {
     if (
@@ -134,32 +168,6 @@ export function InterviewCodingRound({
     submitted,
     secondsLeft,
   ]);
-
-  async function loadChallenge() {
-    try {
-      const generatedChallenge =
-        await createCodingChallenge(
-          {
-            resume,
-
-            jd,
-
-            difficulty:
-              difficulty ||
-              "Medium",
-
-            interviewMode:
-              true,
-          }
-        );
-
-      setChallenge(
-        generatedChallenge
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
   async function runOne(
     stdin: string

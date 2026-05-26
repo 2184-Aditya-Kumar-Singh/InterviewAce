@@ -11,7 +11,7 @@ Production-ready full-stack SaaS starter for AI mock interviews, optimized for z
 - Monaco editor for future Premium coding rounds
 - Browser Text-to-Speech interviewer avatar with local SadTalker-style animation fallback
 - Free Piston API proxy for Java, Python, C++, and C execution
-- Optional OpenAI API integration with local mock fallback
+- Optional Groq/OpenAI API integration with local mock fallback
 
 ## Local Setup
 
@@ -27,7 +27,7 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Add Supabase keys if you have them. Leave them blank for demo mode.
+3. Add Supabase keys if you have them. Leave them blank for demo mode. The Continue with Google button is already wired; it starts real Google OAuth as soon as Supabase Auth variables and the Google provider are configured.
 
 4. Run the app:
 
@@ -59,6 +59,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+GROQ_API_KEY=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 PISTON_API_URL=https://emkc.org/api/v2/piston/execute

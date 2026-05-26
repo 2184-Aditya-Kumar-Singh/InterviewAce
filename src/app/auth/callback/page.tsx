@@ -75,18 +75,21 @@ export default function AuthCallbackPage() {
         }
 
         // CREATE / UPDATE USER PROFILE
-        const { error: profileError } =
-          await supabase
-            .from("profiles")
-            .upsert({
-              id: session.user.id,
-              email: session.user.email,
-            });
+        const profileResponse =
+          await fetch(
+            "/api/auth/profile",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }
+          );
 
-        if (profileError) {
+        if (!profileResponse.ok) {
           console.error(
-            "Profile insert failed:",
-            profileError
+            "Profile sync failed:",
+            await profileResponse.text()
           );
         }
 

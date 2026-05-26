@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -29,6 +30,7 @@ import type {
   JDAnalysis,
   ParsedResume,
   CodingChallenge,
+  CodeReview,
 } from "@/lib/types";
 
 import { InterviewSetup } from "./components/InterviewSetup";
@@ -56,6 +58,107 @@ const planDuration: Record<
   PRO: 1800,
   PREMIUM: 2700,
 };
+
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult:
+    | ((
+        event: {
+          results: {
+            [index: number]: {
+              [index: number]: {
+                transcript: string;
+              };
+            };
+          };
+        }
+      ) => void)
+    | null;
+  start: () => void;
+};
+
+const historyLimit = 80;
+
+function getHistory(
+  kind: "interview" | "coding"
+) {
+  if (
+    typeof window ===
+    "undefined"
+  )
+    return [];
+
+  try {
+    const value =
+      window.localStorage.getItem(
+        `interviewace:${kind}-question-history`
+      );
+
+    const parsed =
+      JSON.parse(value || "[]");
+
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            typeof item ===
+            "string"
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberQuestion(
+  kind: "interview" | "coding",
+  questionText: string
+) {
+  if (
+    typeof window ===
+      "undefined" ||
+    !questionText.trim()
+  )
+    return;
+
+  const key = `interviewace:${kind}-question-history`;
+  const normalized =
+    questionText
+      .toLowerCase()
+      .replace(
+        /[^a-z0-9\s]/g,
+        " "
+      )
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const existing =
+    getHistory(kind);
+
+  const next = [
+    questionText,
+    ...existing.filter(
+      (item) =>
+        item
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9\s]/g,
+            " "
+          )
+          .replace(/\s+/g, " ")
+          .trim() !==
+        normalized
+    ),
+  ].slice(0, historyLimit);
+
+  window.localStorage.setItem(
+    key,
+    JSON.stringify(next)
+  );
+}
 
 export default function InterviewPage() {
   const [resume, setResume] =
@@ -156,10 +259,10 @@ export default function InterviewPage() {
   const [listening, setListening] =
     useState(false);
 
-  const [
-    recognition,
-    setRecognition,
-  ] = useState<any>(null);
+  const recognitionRef =
+    useRef<SpeechRecognitionLike | null>(
+      null
+    );
 
   useEffect(() => {
     async function loadPlan() {
@@ -192,7 +295,9 @@ const data =
 
           setVoiceEnabled(
             data.plan !==
-              "FREE"
+              "FREE" &&
+              data.plan !==
+                "PRO"
           );
 
           setSecondsLeft(
@@ -226,7 +331,10 @@ const data =
 
     const SpeechRecognition =
       (
-        window as any
+        window as Window &
+          typeof globalThis & {
+            webkitSpeechRecognition: new () => SpeechRecognitionLike;
+          }
       )
         .webkitSpeechRecognition;
 
@@ -248,7 +356,15 @@ const data =
       setListening(false);
 
     recog.onresult = (
-      event: any
+      event: {
+        results: {
+          [index: number]: {
+            [index: number]: {
+              transcript: string;
+            };
+          };
+        };
+      }
     ) => {
       const transcript =
         event.results[0][0]
@@ -270,7 +386,8 @@ const data =
       }
     };
 
-    setRecognition(recog);
+    recognitionRef.current =
+      recog;
   }, [plan]);
 
   useEffect(() => {
@@ -339,6 +456,43 @@ const data =
     try {
       setAnalyzing(true);
 
+      let currentResume =
+        resume;
+
+      if (resumeFile) {
+        const formData =
+          new FormData();
+
+        formData.append(
+          "file",
+          resumeFile
+        );
+
+        const resumeResponse =
+          await fetch(
+            "/api/resume/parse",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+        const resumeData =
+          await resumeResponse.json();
+
+        if (
+          resumeResponse.ok &&
+          resumeData?.resume
+        ) {
+          currentResume =
+            resumeData.resume;
+
+          setResume(
+            currentResume
+          );
+        }
+      }
+
       const response =
         await fetch(
           "/api/jd/analyze",
@@ -352,7 +506,8 @@ const data =
 
             body: JSON.stringify({
               jdText,
-              resume,
+              resume:
+                currentResume,
             }),
           }
         );
@@ -389,10 +544,18 @@ const data =
         round,
         persona,
         plan,
-        asked: [],
+        asked:
+          getHistory(
+            "interview"
+          ),
       });
 
     setQuestion(firstQuestion);
+
+    rememberQuestion(
+      "interview",
+      firstQuestion.question
+    );
   }
 
   async function submitAnswer(
@@ -427,28 +590,48 @@ const data =
       },
     ];
 
+    rememberQuestion(
+      "interview",
+      question.question
+    );
+
     setAnswers(nextAnswers);
 
     setAnswer("");
 
     const codingRoundsAsked =
-      answers.filter(
+      nextAnswers.filter(
         (a) =>
           a.questionType ===
           "coding"
       ).length;
 
-    if (
+    const codingLimit =
+      plan === "FREE"
+        ? 0
+        : difficulty === "Hard"
+        ? 3
+        : 2;
+
+    const shouldAskCoding =
+      codingLimit > 0 &&
       (
         round ===
           "Technical" ||
-        round ===
-          "Mixed"
+        round === "Mixed"
       ) &&
       codingRoundsAsked <
-        3 &&
-      answers.length > 0 &&
-      answers.length % 3 === 0
+        codingLimit &&
+      nextAnswers.filter(
+        (a) =>
+          a.questionType !==
+          "coding"
+      ).length %
+        3 ===
+        0;
+
+    if (
+      shouldAskCoding
     ) {
       try {
         const codingResponse =
@@ -475,6 +658,11 @@ const data =
 
                 experienceLevel:
                   "Intermediate",
+
+                avoidedQuestions:
+                  getHistory(
+                    "coding"
+                  ),
               }),
             }
           );
@@ -485,6 +673,15 @@ const data =
         setCodingChallenge(
           codingData.question
         );
+
+        if (
+          codingData.question
+        ) {
+          rememberQuestion(
+            "coding",
+            `${codingData.question.title}\n${codingData.question.prompt}`
+          );
+        }
 
         setShowCoding(true);
 
@@ -509,15 +706,24 @@ const data =
 
         plan,
 
-        asked:
-          nextAnswers.map(
+        asked: [
+          ...getHistory(
+            "interview"
+          ),
+          ...nextAnswers.map(
             (a) =>
               a.question
           ),
+        ],
       });
 
     setQuestion(
       nextQuestion
+    );
+
+    rememberQuestion(
+      "interview",
+      nextQuestion.question
     );
   }
 
@@ -603,8 +809,64 @@ const user =
     }
   }
 
-  async function handleCodingSolved() {
+  async function handleCodingSubmitted(
+    result: {
+      challenge: CodingChallenge;
+      code: string;
+      language: string;
+      review: CodeReview | null;
+    }
+  ) {
     setShowCoding(false);
+
+    const review =
+      result.review;
+
+    const codingAnswer:
+      InterviewAnswer = {
+        questionId:
+          crypto.randomUUID(),
+
+        question:
+          `${result.challenge.title}\n\n${result.challenge.prompt}`,
+
+        answer:
+          `Language: ${result.language}\n\n${result.code}`,
+
+        secondsSpent: 0,
+
+        round:
+          "Technical",
+
+        questionType:
+          "coding",
+
+        expectedSignals: [
+          "correctness",
+          "edge cases",
+          "time complexity",
+          "readability",
+        ],
+
+        codeReview:
+          review ||
+          undefined,
+
+        codingLanguage:
+          result.language,
+      };
+
+    const nextAnswers = [
+      ...answers,
+      codingAnswer,
+    ];
+
+    rememberQuestion(
+      "coding",
+      `${result.challenge.title}\n${result.challenge.prompt}`
+    );
+
+    setAnswers(nextAnswers);
 
     const nextQuestion =
       await generateQuestion({
@@ -621,22 +883,31 @@ const user =
 
         plan,
 
-        asked:
-          answers.map(
+        asked: [
+          ...getHistory(
+            "interview"
+          ),
+          ...nextAnswers.map(
             (a) =>
               a.question
           ),
+        ],
       });
 
     setQuestion(
       nextQuestion
+    );
+
+    rememberQuestion(
+      "interview",
+      nextQuestion.question
     );
   }
 
   return (
     <AuthGuard>
       <AppShell>
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
           <div className="space-y-6">
             <InterviewSetup
               resumeFile={
@@ -687,12 +958,13 @@ const user =
           </div>
 
           <div className="space-y-6">
-            {plan !==
-              "FREE" && (
+            {plan ===
+              "PREMIUM" && (
               <InterviewerAvatar
                 persona={
                   persona
                 }
+                round={round}
                 speaking={
                   speaking
                 }
@@ -718,7 +990,7 @@ const user =
                     plan ===
                     "PREMIUM"
                   ) {
-                    recognition?.start();
+                    recognitionRef.current?.start();
                   }
                 }}
               />
@@ -786,7 +1058,7 @@ const user =
             )
           }
           onSolved={
-            handleCodingSolved
+            handleCodingSubmitted
           }
         />
       </AppShell>

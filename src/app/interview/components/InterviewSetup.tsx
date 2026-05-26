@@ -104,7 +104,7 @@ export function InterviewSetup({
   analyzing,
 }: Props) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur-xl">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-5 backdrop-blur-xl">
       {/* HEADER */}
       <div>
         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
@@ -114,11 +114,11 @@ export function InterviewSetup({
           AI Mock Interview
         </div>
 
-        <h2 className="mt-5 text-5xl font-black leading-tight">
+        <h2 className="mt-4 text-3xl font-black leading-tight">
           Interview Setup
         </h2>
 
-        <p className="mt-4 text-slate-400">
+        <p className="mt-3 text-sm leading-6 text-slate-400">
           Configure your AI
           interview environment
           for realistic
@@ -127,16 +127,16 @@ export function InterviewSetup({
         </p>
       </div>
 
-      <div className="mt-10 space-y-10">
+      <div className="mt-7 space-y-7">
         {/* RESUME */}
-        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
           <div className="flex items-center gap-3">
             <UploadCloud
               className="text-emerald-300"
               size={22}
             />
 
-            <h3 className="text-2xl font-black">
+            <h3 className="text-lg font-black">
               Resume Upload
             </h3>
           </div>
@@ -150,11 +150,11 @@ export function InterviewSetup({
                   null
               )
             }
-            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-5"
+            className="mt-4 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-4 text-sm"
           />
 
           {resumeFile && (
-            <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-4">
+            <div className="mt-4 rounded-xl border border-emerald-400/10 bg-emerald-400/5 p-4 text-sm">
               <p className="font-semibold text-emerald-300">
                 Uploaded:
               </p>
@@ -168,12 +168,12 @@ export function InterviewSetup({
           )}
 
           {parsedResume && (
-            <div className="mt-5 rounded-2xl border border-sky-400/10 bg-sky-400/5 p-5">
+            <div className="mt-4 rounded-xl border border-sky-400/10 bg-sky-400/5 p-4 text-sm">
               <p className="font-semibold text-sky-300">
                 Resume Summary
               </p>
 
-              <p className="mt-3 leading-7 text-slate-300">
+              <p className="mt-2 leading-6 text-slate-300">
                 {
                   parsedResume.summary
                 }
@@ -183,14 +183,14 @@ export function InterviewSetup({
         </div>
 
         {/* JD */}
-        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
           <div className="flex items-center gap-3">
             <FileText
               className="text-amber-300"
               size={22}
             />
 
-            <h3 className="text-2xl font-black">
+            <h3 className="text-lg font-black">
               Job Description
             </h3>
           </div>
@@ -203,7 +203,7 @@ export function InterviewSetup({
               )
             }
             rows={10}
-            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 p-5 leading-7"
+            className="mt-4 w-full rounded-xl border border-white/10 bg-slate-950 p-4 text-sm leading-6"
             placeholder="Paste the target job description here..."
           />
 
@@ -212,7 +212,7 @@ export function InterviewSetup({
             disabled={
               analyzing
             }
-            className="mt-5 rounded-2xl bg-emerald-400 px-6 py-4 font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-70"
+            className="mt-4 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-70"
           >
             {analyzing
               ? "Analyzing JD..."
@@ -222,11 +222,11 @@ export function InterviewSetup({
 
         {/* PLAN */}
         <div>
-          <h3 className="text-3xl font-black">
+          <h3 className="text-xl font-black">
             Select Plan
           </h3>
 
-          <div className="mt-6 grid gap-5">
+          <div className="mt-4 grid gap-3">
             <PlanCard
               title="FREE"
               active={
@@ -262,9 +262,10 @@ export function InterviewSetup({
                   size={24}
                 />
               }
-              description="AI avatar speaks questions while you answer via text."
+              description="Text interview with coding rounds and deeper AI review."
               features={[
-                "AI speaking avatar",
+                "Text-based interview",
+                "2-3 coding rounds",
                 "Advanced reports",
                 "Better technical analysis",
               ]}
@@ -288,8 +289,9 @@ export function InterviewSetup({
               }
               description="Realtime voice-based interview simulation."
               features={[
-                "Realtime AI interview",
+                "Live AI avatar call",
                 "Voice answers",
+                "2-3 coding rounds",
                 "Recruiter-grade evaluation",
                 "Advanced roadmap",
               ]}
@@ -303,84 +305,90 @@ export function InterviewSetup({
         </div>
 
         {/* SETTINGS */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {/* DIFFICULTY */}
-          <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
             <div className="flex items-center gap-3">
               <Brain
                 className="text-emerald-300"
                 size={22}
               />
 
-              <h3 className="text-2xl font-black">
+              <h3 className="text-lg font-black">
                 Difficulty
               </h3>
             </div>
 
-            <select
-              value={
-                difficulty
-              }
-              onChange={(e) =>
+            <OptionGroup
+              className="mt-4"
+              value={difficulty}
+              options={[
+                "Easy",
+                "Medium",
+                "Hard",
+              ]}
+              onChange={(value) =>
                 setDifficulty(
-                  e.target
-                    .value as Difficulty
+                  value as Difficulty
                 )
               }
-              className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
-            >
-              <option value="Easy">
-                Easy
-              </option>
-
-              <option value="Medium">
-                Medium
-              </option>
-
-              <option value="Hard">
-                Hard
-              </option>
-            </select>
+            />
           </div>
 
           {/* ROUND */}
-          <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
-            <h3 className="text-2xl font-black">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
+            <h3 className="text-lg font-black">
               Interview Type
             </h3>
 
-            <select
+            <OptionGroup
+              className="mt-4"
               value={round}
-              onChange={(e) =>
+              options={[
+                "HR",
+                "Technical",
+                "Mixed",
+              ]}
+              onChange={(value) =>
                 setRound(
-                  e.target
-                    .value as InterviewRound
+                  value as InterviewRound
                 )
               }
-              className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
-            >
-              <option value="HR">
-                HR
-              </option>
-
-              <option value="Technical">
-                Technical
-              </option>
-
-              <option value="Mixed">
-                Mixed
-              </option>
-            </select>
+            />
           </div>
         </div>
 
         {/* PERSONA */}
-        <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-6">
-          <h3 className="text-2xl font-black">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
+          <h3 className="text-lg font-black">
             Interviewer Persona
           </h3>
 
-          <select
+          <div className="mt-4 grid gap-3">
+            {[
+              "Friendly HR",
+              "Strict Technical Lead",
+              "Senior Engineering Manager",
+              "Corporate VP",
+            ].map((item) => (
+              <button
+                key={item}
+                onClick={() =>
+                  setPersona(
+                    item as InterviewPersona
+                  )
+                }
+                className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                  persona === item
+                    ? "border-emerald-400 bg-emerald-400/10 text-emerald-200"
+                    : "border-white/10 bg-slate-950/70 text-slate-300 hover:border-white/20"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          {/* <select
             value={persona}
             onChange={(e) =>
               setPersona(
@@ -407,14 +415,14 @@ export function InterviewSetup({
             <option value="Corporate VP">
               Corporate VP
             </option>
-          </select>
+          </select> */}
         </div>
 
         {/* START */}
         <button
           onClick={onStart}
           disabled={loading}
-          className="w-full rounded-3xl bg-white px-8 py-5 text-xl font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-70"
+          className="w-full rounded-2xl bg-white px-6 py-4 text-base font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-70"
         >
           {loading
             ? "Starting Interview..."
@@ -453,7 +461,7 @@ function PlanCard({
   return (
     <button
       onClick={onClick}
-      className={`rounded-3xl border p-6 text-left transition ${
+      className={`rounded-2xl border p-4 text-left transition ${
         active
           ? "border-emerald-400 bg-emerald-400/5"
           : "border-white/10 bg-slate-900/50 hover:border-white/20"
@@ -461,12 +469,12 @@ function PlanCard({
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-white/5 p-3 text-emerald-300">
+          <div className="rounded-xl bg-white/5 p-3 text-emerald-300">
             {icon}
           </div>
 
           <div>
-            <h4 className="text-2xl font-black">
+            <h4 className="text-lg font-black">
               {title}
             </h4>
 
@@ -479,18 +487,18 @@ function PlanCard({
         </div>
 
         {active && (
-          <div className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-black text-slate-950">
+          <div className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-slate-950">
             Selected
           </div>
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-2">
         {features.map(
           (feature) => (
             <span
               key={feature}
-              className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-slate-300"
+              className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-slate-300"
             >
               {feature}
             </span>
@@ -498,5 +506,39 @@ function PlanCard({
         )}
       </div>
     </button>
+  );
+}
+
+function OptionGroup({
+  value,
+  options,
+  onChange,
+  className = "",
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`grid grid-cols-3 gap-2 ${className}`}
+    >
+      {options.map((option) => (
+        <button
+          key={option}
+          onClick={() =>
+            onChange(option)
+          }
+          className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
+            value === option
+              ? "border-emerald-400 bg-emerald-400 text-slate-950"
+              : "border-white/10 bg-slate-950 text-slate-300 hover:border-white/20 hover:bg-white/5"
+          }`}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -170,7 +170,7 @@ Format:
 
       report: parsed,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(
       "INTERVIEW REPORT ERROR:",
       err
@@ -180,8 +180,9 @@ Format:
       {
         success: false,
         error:
-          err?.message ||
-          "Failed generating report",
+          err instanceof Error
+            ? err.message
+            : "Failed generating report",
       },
       { status: 500 }
     );

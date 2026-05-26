@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import mammoth from "mammoth";
+import Groq from "groq-sdk";
 import { parseResumeText } from "@/lib/resume";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+
+function getGroqClient() {
+  return new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  });
+}
 
 export async function POST(request: NextRequest) {
   const limited = rateLimit(`resume:${request.headers.get("x-forwarded-for") || "local"}`, 8, 60_000);
@@ -52,5 +59,67 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ resume: parseResumeText(text) });
+  const fallback = parseResumeText(text);
+
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json({ resume: fallback });
+  }
+
+  try {
+    const prompt = `
+Parse this resume for mock interview generation.
+
+Return ONLY raw JSON:
+{
+  "rawText": "",
+  "skills": [],
+  "education": [],
+  "projects": [],
+  "summary": ""
+}
+
+Rules:
+- Keep rawText as the original resume text.
+- skills should include technical and relevant soft skills, normalized and deduplicated.
+- projects should be specific project lines with tech stack, role, and impact when present.
+- education should include degree, institution, CGPA/GPA, and dates when present.
+- summary should be a concise recruiter-style profile summary useful for asking interview questions.
+
+Resume text:
+${text.slice(0, 18000)}
+`;
+
+    const response = await getGroqClient().chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert resume parser for technical interviews. Return ONLY valid JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.15,
+    });
+
+    const raw = response.choices[0]?.message?.content || "";
+    const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+
+    return NextResponse.json({
+      resume: {
+        rawText: text,
+        skills: Array.isArray(parsed.skills) && parsed.skills.length ? parsed.skills : fallback.skills,
+        education: Array.isArray(parsed.education) ? parsed.education : fallback.education,
+        projects: Array.isArray(parsed.projects) ? parsed.projects : fallback.projects,
+        summary: parsed.summary || fallback.summary,
+      },
+    });
+  } catch (error) {
+    console.error("RESUME AI PARSE ERROR:", error);
+    return NextResponse.json({ resume: fallback });
+  }
 }

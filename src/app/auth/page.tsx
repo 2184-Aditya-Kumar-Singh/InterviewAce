@@ -1,36 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid min-h-screen place-items-center bg-slate-950 px-4 text-slate-300">
+          Loading login...
+        </main>
+      }
+    >
+      <AuthContent />
+    </Suspense>
+  );
+}
+
+function AuthContent() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(
+    searchParams.get("error") || ""
+  );
   const [loading, setLoading] = useState(false);
 
   async function googleLogin() {
-  if (!supabase) {
-    setMessage("Authentication service unavailable.");
-    return;
+    if (!supabase) {
+      setMessage(
+        "Google login needs Supabase environment variables. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local."
+      );
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+    }
   }
-
-  setLoading(true);
-  setMessage("");
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    setMessage(error.message);
-    setLoading(false);
-  }
-}
 
   async function emailOtpLogin() {
     setLoading(true);
@@ -83,6 +103,12 @@ export default function AuthPage() {
         >
           Continue with Google
         </button>
+
+        {!isSupabaseConfigured && (
+          <p className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-6 text-amber-100">
+            Supabase is not configured in this local environment. Add your Supabase URL and public anon or publishable key to enable Google login.
+          </p>
+        )}
 
         <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-500">
           <span className="h-px flex-1 bg-white/10" />

@@ -30,7 +30,7 @@ export async function POST(
     return NextResponse.json({
       profile,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(
       "PROFILE API ERROR:",
       err
@@ -39,8 +39,9 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          err?.message ||
-          "Could not sync profile.",
+          err instanceof Error
+            ? err.message
+            : "Could not sync profile.",
       },
       { status: 500 }
     );

@@ -9,9 +9,12 @@ import Groq from "groq-sdk";
 
 import { rateLimit } from "@/lib/rate-limit";
 
-const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+function getGroqClient() {
+  return new Groq({
+    apiKey:
+      process.env.GROQ_API_KEY,
+  });
+}
 
 const schema = z.object({
   language: z.enum([
@@ -194,7 +197,7 @@ export async function POST(
     const aiPrompt = `
 You are an expert FAANG-level coding interviewer.
 
-Analyze this coding interview submission realistically.
+Analyze this coding interview submission thoroughly and realistically.
 
 Judge:
 - correctness
@@ -204,8 +207,10 @@ Judge:
 - interview readiness
 - time complexity
 - brute force vs optimized thinking
+- whether the code actually solves the exact prompt
+- language-specific problems, missing input parsing, and incomplete output formatting
 
-Be strict and realistic.
+Be strict and realistic. Do not reward generic code that does not solve the asked problem.
 
 If the code is weak, score low.
 
@@ -235,7 +240,7 @@ ${code}
 `;
 
     const response =
-      await client.chat.completions.create(
+      await getGroqClient().chat.completions.create(
         {
           model:
             "llama-3.3-70b-versatile",

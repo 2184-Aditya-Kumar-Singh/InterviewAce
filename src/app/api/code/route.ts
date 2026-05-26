@@ -2,10 +2,92 @@ import { NextResponse } from "next/server";
 
 import Groq from "groq-sdk";
 
-const client = new Groq({
-  apiKey:
-    process.env.GROQ_API_KEY,
-});
+function getGroqClient() {
+  return new Groq({
+    apiKey:
+      process.env.GROQ_API_KEY,
+  });
+}
+
+function normalizeQuestion(
+  value: string
+) {
+  return value
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9\s]/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSimilar(
+  current: string,
+  previous: string
+) {
+  const currentWords =
+    new Set(
+      normalizeQuestion(current)
+        .split(" ")
+        .filter(
+          (word) =>
+            word.length > 3
+        )
+    );
+
+  const previousWords =
+    new Set(
+      normalizeQuestion(previous)
+        .split(" ")
+        .filter(
+          (word) =>
+            word.length > 3
+        )
+    );
+
+  if (
+    currentWords.size === 0 ||
+    previousWords.size === 0
+  )
+    return false;
+
+  const overlap = Array.from(
+    currentWords
+  ).filter((word) =>
+    previousWords.has(word)
+  ).length;
+
+  return (
+    overlap /
+      Math.min(
+        currentWords.size,
+        previousWords.size
+      ) >=
+    0.55
+  );
+}
+
+function hasBeenAsked(
+  candidate: {
+    title?: string;
+    prompt?: string;
+  },
+  avoided: string[]
+) {
+  const combined = `${candidate.title || ""}\n${candidate.prompt || ""}`;
+
+  return avoided.some(
+    (previous) =>
+      normalizeQuestion(
+        candidate.title || ""
+      ) ===
+        normalizeQuestion(
+          previous
+        ) ||
+      isSimilar(combined, previous)
+  );
+}
 
 export async function POST(
   req: Request
@@ -36,7 +118,16 @@ export async function POST(
       difficulty,
 
       experienceLevel,
+
+      avoidedQuestions = [],
     } = body;
+
+    const difficultyRules =
+      difficulty === "Easy"
+        ? "Easy: arrays, strings, hash maps, simple loops, one clear trick, 15-20 minutes."
+        : difficulty === "Hard"
+        ? "Hard: graph/DP/heap/sliding-window/systematic optimization, multiple edge cases, 35-45 minutes."
+        : "Medium: hash maps, two pointers, binary search, trees, stacks, queues, or greedy trade-offs, 25-30 minutes.";
 
     const prompt = `
 Generate ONE realistic coding interview question.
@@ -46,6 +137,10 @@ Requirements:
 - Skills: ${skills?.join(", ")}
 - Difficulty: ${difficulty}
 - Experience: ${experienceLevel}
+- Difficulty calibration: ${difficultyRules}
+
+Already solved by this user. Do NOT repeat these titles, topics, patterns, or near-duplicates:
+${Array.isArray(avoidedQuestions) ? avoidedQuestions.join("\n") : ""}
 
 Rules:
 - Make it similar to LeetCode/company OA
@@ -53,10 +148,12 @@ Rules:
 - Include constraints
 - Include input format
 - Include output format
-- Include realistic edge cases
-- Include one sample testcase
+- Include realistic edge cases and at least 3 runnable test cases
 - Hidden testcase count should be assumed as 5
-- Avoid trivial questions
+- Avoid trivia, syntax-only, or generic "write a CRUD API" questions
+- Prefer topics connected to the role skills when possible
+- Do not generate Two Sum, palindrome, fizzbuzz, or any question already listed above unless the avoided list is empty
+- If a skill points to the same old problem, choose a different problem pattern
 - Return ONLY RAW JSON
 - NEVER return markdown
 
@@ -79,8 +176,15 @@ Return EXACT format:
 }
 `;
 
-    const response =
-      await client.chat.completions.create(
+    let parsed;
+
+    for (
+      let attempt = 0;
+      attempt < 2;
+      attempt += 1
+    ) {
+      const response =
+        await getGroqClient().chat.completions.create(
         {
           model:
             "llama-3.3-70b-versatile",
@@ -97,7 +201,11 @@ Return EXACT format:
               role: "user",
 
               content:
-                prompt,
+                attempt === 0
+                  ? prompt
+                  : `${prompt}
+
+The previous generated coding question was too similar to the solved history. Generate a different topic and problem pattern.`,
             },
           ],
 
@@ -105,46 +213,85 @@ Return EXACT format:
         }
       );
 
-    const text =
-      response.choices[0]
-        ?.message?.content ||
-      "";
+      const text =
+        response.choices[0]
+          ?.message?.content ||
+        "";
 
-    console.log(
-      "GROQ RAW RESPONSE:",
-      text
-    );
-
-    const cleaned = text
-      .replace(
-        /```json/g,
-        ""
-      )
-      .replace(
-        /```/g,
-        ""
-      )
-      .trim();
-
-    let parsed;
-
-    try {
-      parsed =
-        JSON.parse(cleaned);
-    } catch (
-      parseError
-    ) {
-      console.error(
-        "JSON Parse Error:",
-        parseError
+      console.log(
+        "GROQ RAW RESPONSE:",
+        text
       );
 
+      const cleaned = text
+        .replace(
+          /```json/g,
+          ""
+        )
+        .replace(
+          /```/g,
+          ""
+        )
+        .trim();
+
+      try {
+        parsed =
+          JSON.parse(cleaned);
+      } catch (
+        parseError
+      ) {
+        console.error(
+          "JSON Parse Error:",
+          parseError
+        );
+
+        parsed = null;
+      }
+
+      if (
+        parsed &&
+        !hasBeenAsked(
+          parsed,
+          Array.isArray(
+            avoidedQuestions
+          )
+            ? avoidedQuestions
+            : []
+        )
+      ) {
+        break;
+      }
+
+      parsed = null;
+    }
+
+    if (!parsed) {
       parsed = {
         title:
-          "Two Sum",
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? "Valid Parentheses"
+            : "Two Sum",
 
         topic:
-          "Arrays",
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? "Stack"
+            : "Arrays",
 
         difficulty:
           difficulty ||
@@ -152,7 +299,36 @@ Return EXACT format:
 
         timeLimitSeconds: 600,
 
-        prompt: `
+        prompt:
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? `
+Given a string containing only parentheses characters '(', ')', '{', '}', '[' and ']', determine whether the string is valid.
+
+Input Format:
+- One line containing string s
+
+Output Format:
+- Print true if valid, otherwise false
+
+Constraints:
+- 1 <= s.length <= 10^5
+
+Example:
+Input:
+()[]{}
+
+Output:
+true
+        `
+            : `
 Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
 
 Input Format:
@@ -177,21 +353,63 @@ Output:
 0 1
         `,
 
-        testCases: [
-          {
-            input:
-              "4\n2 7 11 15\n9",
+        testCases:
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? [
+                {
+                  input: "()[]{}",
+                  expectedOutput:
+                    "true",
+                },
+                {
+                  input: "(]",
+                  expectedOutput:
+                    "false",
+                },
+              ]
+            : [
+                {
+                  input:
+                    "4\n2 7 11 15\n9",
 
-            expectedOutput:
-              "0 1",
-          },
-        ],
+                  expectedOutput:
+                    "0 1",
+                },
+              ],
 
         solutionHint:
-          "Use hashmap for O(n) solution.",
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? "Use a stack to track opening brackets and match each closing bracket."
+            : "Use hashmap for O(n) solution.",
 
         referenceAnswer:
-          "Use a hash map to store previously seen numbers.",
+          Array.isArray(
+            avoidedQuestions
+          ) &&
+          avoidedQuestions.some(
+            (item: string) =>
+              /two sum/i.test(
+                item
+              )
+          )
+            ? "Push opening brackets onto a stack, pop and compare when a closing bracket appears, and ensure the stack is empty at the end."
+            : "Use a hash map to store previously seen numbers.",
       };
     }
 
@@ -223,7 +441,7 @@ Output:
 
       question: parsed,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(
       "GROQ API ERROR:",
       err
@@ -234,7 +452,9 @@ Output:
         success: false,
 
         error:
-          err?.message ||
+          err instanceof Error
+            ? err.message
+            :
           "Failed generating coding question",
       },
       { status: 500 }

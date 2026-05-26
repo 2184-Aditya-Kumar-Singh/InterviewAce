@@ -48,6 +48,19 @@ export type InterviewAnswer = {
   round?: InterviewRound;
   questionType?: "voice" | "coding";
   expectedSignals?: string[];
+  codeReview?: CodeReview;
+  codingLanguage?: string;
+};
+
+export type CodeReview = {
+  score: number;
+  correctness: number;
+  timeComplexity: string;
+  spaceComplexity: string;
+  readability: number;
+  edgeCases: number;
+  optimization: string;
+  suggestions: string[];
 };
 
 export type AnswerReview = {

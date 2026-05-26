@@ -11,6 +11,15 @@ import type {
   ParsedResume,
 } from "./types";
 
+import Groq from "groq-sdk";
+
+function getGroqClient() {
+  return new Groq({
+    apiKey:
+      process.env.GROQ_API_KEY,
+  });
+}
+
 const questionBank: Record<
   Exclude<InterviewRound, "Mixed">,
   Record<Difficulty, string[]>
@@ -212,6 +221,32 @@ function reviewAnswer(
   const cleanAnswer =
     answer.answer.trim();
 
+  if (
+    answer.questionType ===
+      "coding" &&
+    answer.codeReview
+  ) {
+    const score =
+      clampScore(
+        answer.codeReview.score
+      );
+
+    return {
+      question: answer.question,
+      answer: cleanAnswer,
+      score,
+      verdict:
+        score >= 80
+          ? "Strong"
+          : score >= 55
+          ? "Partial"
+          : "Weak",
+      feedback: `Code review: correctness ${answer.codeReview.correctness}/100, readability ${answer.codeReview.readability}/100, edge-case handling ${answer.codeReview.edgeCases}/100. Time complexity: ${answer.codeReview.timeComplexity}. Space complexity: ${answer.codeReview.spaceComplexity}. ${answer.codeReview.optimization} ${answer.codeReview.suggestions.join(" ")}`,
+      missingSignals:
+        answer.codeReview.suggestions,
+    };
+  }
+
   if (!cleanAnswer) {
     return {
       question: answer.question,
@@ -229,13 +264,46 @@ function reviewAnswer(
   const answerWords =
     normalizeWords(cleanAnswer);
 
-  const overlap =
-    Array.from(answerWords)
+  const questionWords =
+    normalizeWords(
+      answer.question
+    );
+
+  const signalWords =
+    normalizeWords(
+      answer.expectedSignals?.join(
+        " "
+      ) || ""
+    );
+
+  const relevance =
+    Array.from(
+      questionWords
+    ).filter((word) =>
+      answerWords.has(word)
+    ).length;
+
+  const signalCoverage =
+    Array.from(
+      signalWords
+    ).filter((word) =>
+      answerWords.has(word)
+    ).length;
+
+  const wordCount =
+    cleanAnswer.split(/\s+/)
       .length;
 
+  const hasExample =
+    /(project|built|implemented|designed|debugged|improved|measured|result|impact|trade-off|tradeoff)/i.test(
+      cleanAnswer
+    );
+
   const score = clampScore(
-    overlap * 2 +
-      cleanAnswer.length / 20
+    wordCount * 1.1 +
+      relevance * 4 +
+      signalCoverage * 8 +
+      (hasExample ? 12 : 0)
   );
 
   return {
@@ -252,10 +320,20 @@ function reviewAnswer(
 
     feedback:
       score >= 75
-        ? "Good answer with relevant detail."
-        : "Needs more clarity and examples.",
+        ? "Good answer with relevant detail, question alignment, and concrete evidence."
+        : score >= 50
+        ? "Partially relevant answer, but it needs stronger structure, clearer trade-offs, and more concrete evidence."
+        : "Weak answer for this question. Add a direct answer, a specific example, measurable outcome, and address the expected signals.",
 
-    missingSignals: [],
+    missingSignals:
+      answer.expectedSignals?.filter(
+        (signal) =>
+          !cleanAnswer
+            .toLowerCase()
+            .includes(
+              signal.toLowerCase()
+            )
+      ) || [],
   };
 }
 
@@ -339,5 +417,105 @@ export async function createInterviewReport(
     resume?: ParsedResume;
   }
 ): Promise<InterviewReport> {
+  if (
+    process.env.GROQ_API_KEY
+  ) {
+    try {
+      const prompt = `
+You are a senior interviewer creating a final mock interview report.
+
+Evaluate every answer against the exact question asked, expected signals, resume, job description, difficulty, and coding review data.
+
+Be specific. Penalize vague, short, generic, memorized, or unrelated answers. For coding answers, evaluate correctness, edge cases, complexity, readability, and whether the submitted code solves the prompt.
+
+Return ONLY raw JSON in this exact shape:
+
+{
+  "overallScore": 0,
+  "technicalScore": 0,
+  "codingScore": 0,
+  "resumeAlignmentScore": 0,
+  "communicationScore": 0,
+  "confidenceEstimate": 0,
+  "answerReviews": [
+    {
+      "question": "",
+      "answer": "",
+      "score": 0,
+      "verdict": "Strong",
+      "feedback": "",
+      "missingSignals": []
+    }
+  ],
+  "strengths": [],
+  "weaknesses": [],
+  "resumeAdditions": [],
+  "resumeRemovals": [],
+  "focusAreas": [],
+  "roadmap": []
+}
+
+Difficulty: ${input.difficulty}
+
+Resume:
+${JSON.stringify(input.resume || {}, null, 2)}
+
+Job description analysis:
+${JSON.stringify(input.jd || {}, null, 2)}
+
+Answers:
+${JSON.stringify(input.answers, null, 2)}
+`;
+
+      const response =
+        await getGroqClient().chat.completions.create(
+          {
+            model:
+              "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a strict senior interviewer and code reviewer. Return ONLY valid JSON.",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.25,
+          }
+        );
+
+      const text =
+        response.choices[0]
+          ?.message?.content ||
+        "";
+
+      const cleaned =
+        text
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
+
+      const parsed =
+        JSON.parse(cleaned);
+
+      if (
+        parsed?.answerReviews &&
+        Array.isArray(
+          parsed.answerReviews
+        )
+      ) {
+        return parsed;
+      }
+    } catch (err) {
+      console.error(
+        "AI REPORT ERROR:",
+        err
+      );
+    }
+  }
+
   return createLocalReport(input);
 }

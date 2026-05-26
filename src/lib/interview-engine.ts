@@ -141,6 +141,40 @@ export async function createInterviewReport(
     resume?: ParsedResume;
   }
 ): Promise<InterviewReport> {
+  try {
+    const response =
+      await fetch(
+        "/api/interview/report",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            input
+          ),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      response.ok &&
+      data?.report
+    ) {
+      return data.report;
+    }
+  } catch (err) {
+    console.error(
+      "REPORT API ERROR:",
+      err
+    );
+  }
+
   const reviews =
     input.answers.map(
       (a) => {
@@ -177,10 +211,49 @@ export async function createInterviewReport(
             "implemented"
           );
 
+        const isCoding =
+          a.questionType ===
+          "coding";
+
         const hasTechnicalTerms =
           /(api|database|algorithm|system|react|next|node|sql|optimization|backend|frontend|architecture)/i.test(
             answer
           );
+
+        if (
+          isCoding &&
+          a.codeReview
+        ) {
+          score =
+            a.codeReview.score;
+
+          verdict =
+            score >= 80
+              ? "Strong"
+              : score >= 55
+              ? "Partial"
+              : "Weak";
+
+          feedback = `Coding review: correctness ${a.codeReview.correctness}/100, readability ${a.codeReview.readability}/100, edge cases ${a.codeReview.edgeCases}/100. Time: ${a.codeReview.timeComplexity}; Space: ${a.codeReview.spaceComplexity}. ${a.codeReview.optimization} ${a.codeReview.suggestions.join(" ")}`;
+
+          return {
+            question:
+              a.question,
+
+            answer:
+              a.answer,
+
+            score,
+
+            verdict,
+
+            feedback,
+
+            missingSignals:
+              a.codeReview
+                .suggestions,
+          };
+        }
 
         if (
           !answer ||
