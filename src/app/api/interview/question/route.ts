@@ -304,8 +304,21 @@ export async function POST(
       asked = [],
     } = parsed.data;
 
-    const personaBehavior =
-      const roundInstruction =
+    const personaBehavior = {
+  "Friendly HR":
+    "Warm, conversational, supportive, recruiter-like.",
+
+  "Strict Technical Lead":
+    "Strict, analytical, deep technical interviewer. Push candidate harder.",
+
+  "Senior Engineering Manager":
+    "Leadership-focused, architecture-focused, evaluates communication and ownership.",
+
+  "Corporate VP":
+    "Business-oriented executive interviewer focusing on impact and strategic thinking.",
+};
+
+const roundInstruction =
   round === "Technical"
     ? `
 STRICT TECHNICAL ROUND RULES:
@@ -325,20 +338,6 @@ STRICT HR ROUND RULES:
 MIXED ROUND RULES:
 - Alternate between HR and Technical questions
 `;
-      {
-        "Friendly HR":
-          "Warm, conversational, supportive, recruiter-like.",
-
-        "Strict Technical Lead":
-          "Strict, analytical, deep technical interviewer. Push candidate harder.",
-
-        "Senior Engineering Manager":
-          "Leadership-focused, architecture-focused, evaluates communication and ownership.",
-
-        "Corporate VP":
-          "Business-oriented executive interviewer focusing on impact and strategic thinking.",
-      };
-
     const prompt = `
 You are conducting a REALISTIC FAANG-style mock interview.
 
