@@ -305,10 +305,10 @@ export function InterviewSetup({
         </div>
 
         {/* SETTINGS */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
           {/* DIFFICULTY */}
           <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-4">
               <Brain
                 className="text-emerald-300"
                 size={22}
@@ -320,7 +320,6 @@ export function InterviewSetup({
             </div>
 
             <OptionGroup
-              className="mt-4"
               value={difficulty}
               options={[
                 "Easy",
@@ -337,12 +336,18 @@ export function InterviewSetup({
 
           {/* ROUND */}
           <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
-            <h3 className="text-lg font-black">
-              Interview Type
-            </h3>
+            <div className="flex items-center gap-3 mb-4">
+              <Briefcase
+                className="text-amber-300"
+                size={22}
+              />
+
+              <h3 className="text-lg font-black">
+                Interview Type
+              </h3>
+            </div>
 
             <OptionGroup
-              className="mt-4"
               value={round}
               options={[
                 "HR",
@@ -388,34 +393,6 @@ export function InterviewSetup({
               </button>
             ))}
           </div>
-          {/* <select
-            value={persona}
-            onChange={(e) =>
-              setPersona(
-                e.target
-                  .value as InterviewPersona
-              )
-            }
-            className="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950 px-5 py-4"
-          >
-            <option value="Friendly HR">
-              Friendly HR
-            </option>
-
-            <option value="Strict Technical Lead">
-              Strict Technical
-              Lead
-            </option>
-
-            <option value="Senior Engineering Manager">
-              Senior Engineering
-              Manager
-            </option>
-
-            <option value="Corporate VP">
-              Corporate VP
-            </option>
-          </select> */}
         </div>
 
         {/* START */}
