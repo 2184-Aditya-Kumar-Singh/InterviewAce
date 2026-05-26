@@ -116,78 +116,71 @@ export function InterviewCodingModal({
   }
 
   return (
-    <aside className="fixed right-0 top-0 z-[999] h-screen w-full border-l border-white/10 bg-black/95 shadow-2xl shadow-black/60 backdrop-blur-sm lg:w-1/2">
-      <div className="flex h-full flex-col overflow-hidden">
-        <section className="max-h-[46vh] overflow-y-auto border-b border-white/10 bg-slate-950 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
-                <Code2 size={16} />
-                Coding Round
-              </div>
-              <h1 className="mt-5 text-3xl font-black leading-tight">
-                Solve this question
-              </h1>
-              <p className="mt-3 text-xl font-bold text-white">
-                {challenge.title}
-              </p>
-              <p className="mt-2 text-slate-400">
-                Topic: {challenge.topic}
-              </p>
+  <div className="fixed inset-0 z-[9999] bg-[#0b1020]">
+    <div className="flex h-screen w-screen overflow-hidden">
+      
+      {/* LEFT PANEL */}
+      <section className="w-[45%] overflow-y-auto border-r border-white/10 bg-[#0f172a] p-8">
+        
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+              <Code2 size={16} />
+              Coding Round
             </div>
-            <div className="rounded-full bg-white/5 px-5 py-2 text-sm font-bold text-white">
-              {challenge.difficulty}
-            </div>
+
+            <h1 className="mt-5 text-3xl font-black">
+              {challenge.title}
+            </h1>
+
+            <p className="mt-3 text-slate-400">
+              Topic: {challenge.topic}
+            </p>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-5">
-            <div className="flex items-center gap-3">
-              <Clock3
-                className="text-rose-300"
-                size={20}
+          <div className="rounded-xl bg-white/5 px-4 py-2 text-sm font-bold">
+            {challenge.difficulty}
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <h2 className="text-2xl font-black">
+            Problem Statement
+          </h2>
+
+          <div className="mt-5 whitespace-pre-wrap text-base leading-8 text-slate-300">
+            {challenge.prompt}
+          </div>
+        </div>
+
+        {challenge.testCases?.[0] && (
+          <div className="mt-10 rounded-2xl border border-white/10 bg-[#111827] p-6">
+            <div className="flex items-center gap-2">
+              <Terminal
+                size={18}
+                className="text-emerald-300"
               />
-              <p className="font-semibold text-rose-200">
-                Time Remaining
-              </p>
-            </div>
-            <h2 className="mt-3 text-4xl font-black">
-              {Math.floor(secondsLeft / 60)}:
-              {String(secondsLeft % 60).padStart(
-                2,
-                "0"
-              )}
-            </h2>
-          </div>
 
-          <div className="mt-7">
-            <h2 className="text-2xl font-black">
-              Problem Statement
-            </h2>
-            <div className="mt-4 whitespace-pre-wrap text-base leading-8 text-slate-300">
-              {challenge.prompt}
+              <h2 className="text-xl font-black">
+                Example
+              </h2>
             </div>
-          </div>
 
-          {challenge.testCases?.[0] && (
-            <div className="mt-7 rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-              <div className="flex items-center gap-3">
-                <Terminal
-                  size={20}
-                  className="text-emerald-300"
-                />
-                <h2 className="text-xl font-black">
-                  Sample Example
-                </h2>
-              </div>
-              <p className="mt-5 font-semibold text-slate-300">
+            <div className="mt-5">
+              <p className="font-semibold text-slate-300">
                 Input
               </p>
+
               <pre className="mt-2 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
                 {challenge.testCases[0].input}
               </pre>
-              <p className="mt-5 font-semibold text-slate-300">
+            </div>
+
+            <div className="mt-5">
+              <p className="font-semibold text-slate-300">
                 Output
               </p>
+
               <pre className="mt-2 overflow-auto rounded-xl bg-black p-4 text-sm text-emerald-300">
                 {
                   challenge.testCases[0]
@@ -195,86 +188,94 @@ export function InterviewCodingModal({
                 }
               </pre>
             </div>
-          )}
-        </section>
-
-        <section className="flex min-h-0 flex-1 flex-col bg-[#0d1117]">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
-            <div>
-              <select
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setCode(starters[e.target.value]);
-                }}
-                disabled={submitted || submitting}
-                className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 font-semibold"
-              >
-                {Object.keys(starters).map(
-                  (lang) => (
-                    <option key={lang}>
-                      {lang}
-                    </option>
-                  )
-                )}
-              </select>
-              <p className="mt-2 text-sm text-slate-400">
-                Choose a language, write the solution,
-                and submit once for AI review.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={onClose}
-                disabled={submitted || submitting}
-                className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitted || submitting}
-                className="rounded-2xl bg-emerald-400 px-6 py-3 font-black text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {submitting
-                  ? "Reviewing..."
-                  : submitted
-                  ? "Submitted"
-                  : "Submit Code"}
-              </button>
-            </div>
           </div>
+        )}
+      </section>
 
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <Editor
-              height="100%"
-              language={
-                language === "C++"
-                  ? "cpp"
-                  : language.toLowerCase()
-              }
-              value={code}
-              onChange={(value) =>
-                setCode(value || "")
-              }
-              theme="vs-dark"
-              options={{
-                minimap: {
-                  enabled: false,
-                },
-                fontSize: 16,
-                lineHeight: 28,
-                padding: {
-                  top: 20,
-                },
-                readOnly: submitted || submitting,
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
+      {/* RIGHT PANEL */}
+      <section className="flex flex-1 flex-col bg-[#0d1117]">
+
+        {/* TOP BAR */}
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+          
+          <div className="flex items-center gap-4">
+            <select
+              value={language}
+              onChange={(e) => {
+                setLanguage(e.target.value);
+                setCode(starters[e.target.value]);
               }}
-            />
+              disabled={submitted || submitting}
+              className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 font-semibold"
+            >
+              {Object.keys(starters).map(
+                (lang) => (
+                  <option key={lang}>
+                    {lang}
+                  </option>
+                )
+              )}
+            </select>
+
+            <p className="text-sm text-slate-400">
+              Write your solution and submit for AI review
+            </p>
           </div>
-        </section>
-      </div>
-    </aside>
-  );
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={submitted || submitting}
+              className="rounded-xl border border-white/10 px-5 py-3 font-semibold text-slate-300 hover:bg-white/5"
+            >
+              Close
+            </button>
+
+            <button
+              onClick={handleSubmit}
+              disabled={submitted || submitting}
+              className="rounded-xl bg-emerald-400 px-6 py-3 font-black text-slate-950"
+            >
+              {submitting
+                ? "Reviewing..."
+                : submitted
+                ? "Submitted"
+                : "Submit Code"}
+            </button>
+          </div>
+        </div>
+
+        {/* EDITOR */}
+        <div className="flex-1 overflow-hidden">
+          <Editor
+            height="100%"
+            language={
+              language === "C++"
+                ? "cpp"
+                : language.toLowerCase()
+            }
+            value={code}
+            onChange={(value) =>
+              setCode(value || "")
+            }
+            theme="vs-dark"
+            options={{
+              minimap: {
+                enabled: false,
+              },
+              fontSize: 16,
+              lineHeight: 28,
+              padding: {
+                top: 20,
+              },
+              readOnly: submitted || submitting,
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+            }}
+          />
+        </div>
+      </section>
+    </div>
+  </div>
+);
 }
