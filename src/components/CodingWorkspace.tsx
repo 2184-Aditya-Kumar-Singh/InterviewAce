@@ -11,10 +11,11 @@ import {
 import {
   Play,
   Send,
-  Timer,
   RefreshCw,
   CheckCircle2,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { createCodingChallenge } from "@/lib/coding-challenges";
@@ -112,16 +113,26 @@ export function CodingWorkspace({
   const [submitted, setSubmitted] =
     useState(false);
 
-  const [secondsLeft, setSecondsLeft] =
-    useState(0);
-
   const [
     loadingQuestion,
     setLoadingQuestion,
   ] = useState(false);
 
+  const [splitPos, setSplitPos] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     loadChallenge();
+    
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   async function loadChallenge() {
@@ -146,11 +157,6 @@ export function CodingWorkspace({
       setChallenge(
         generatedChallenge
       );
-
-      setSecondsLeft(
-        generatedChallenge.timeLimitSeconds ||
-          1800
-      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -159,37 +165,33 @@ export function CodingWorkspace({
   }
 
   useEffect(() => {
-    if (
-      !challenge ||
-      submitted ||
-      secondsLeft <= 0
-    )
-      return;
+    if (!isDragging) return;
 
-    const timer =
-      window.setInterval(() => {
-        setSecondsLeft((prev) =>
-          Math.max(0, prev - 1)
-        );
-      }, 1000);
+    const handleMouseMove = (e: MouseEvent) => {
+      const container = document.getElementById('split-container');
+      if (!container) return;
 
-    return () =>
-      window.clearInterval(timer);
-  }, [
-    challenge,
-    submitted,
-    secondsLeft,
-  ]);
+      const rect = container.getBoundingClientRect();
+      const newPos = ((e.clientX - rect.left) / rect.width) * 100;
+      
+      // Clamp between 30% and 70%
+      if (newPos >= 30 && newPos <= 70) {
+        setSplitPos(newPos);
+      }
+    };
 
-  const timerLabel = useMemo(
-    () =>
-      `${Math.floor(
-        secondsLeft / 60
-      )}:${String(
-        secondsLeft % 60
-      ).padStart(2, "0")}`,
-    [secondsLeft]
-  );
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   async function generateNewQuestion() {
     await loadChallenge();
@@ -348,11 +350,9 @@ export function CodingWorkspace({
       {/* HEADER */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Timer size={18} />
-
-          <span className="text-lg font-semibold">
-            {timerLabel}
-          </span>
+          <h2 className="text-2xl font-bold text-emerald-400">
+            {String(challenge.title)}
+          </h2>
         </div>
 
         <button
@@ -362,7 +362,7 @@ export function CodingWorkspace({
           disabled={
             loadingQuestion
           }
-          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-black hover:bg-emerald-400"
+          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
         >
           <RefreshCw size={16} />
 
@@ -372,56 +372,62 @@ export function CodingWorkspace({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* LEFT */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
-          <h1 className="text-3xl font-bold">
-            {String(
-              challenge.title
-            )}
-          </h1>
+      {/* SPLIT CONTAINER */}
+      <div 
+        id="split-container"
+        className="grid gap-6 lg:gap-0"
+        style={isMobile ? { gridTemplateColumns: '1fr' } : { gridTemplateColumns: `${splitPos}% 1fr` }}
+      >
+        {/* LEFT - QUESTION PANEL */}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-6">
+            <h1 className="text-3xl font-bold">
+              {String(
+                challenge.title
+              )}
+            </h1>
 
-          <p className="mt-4 whitespace-pre-wrap text-lg leading-8 text-slate-300">
-            {typeof challenge.prompt ===
-            "string"
-              ? challenge.prompt
-              : JSON.stringify(
-                  challenge.prompt,
-                  null,
-                  2
-                )}
-          </p>
+            <p className="mt-4 whitespace-pre-wrap text-lg leading-8 text-slate-300">
+              {typeof challenge.prompt ===
+              "string"
+                ? challenge.prompt
+                : JSON.stringify(
+                    challenge.prompt,
+                    null,
+                    2
+                  )}
+            </p>
 
-          {/* EXAMPLES */}
-          <div className="mt-8">
-            <h2 className="mb-4 text-xl font-semibold">
-              Examples
-            </h2>
+            {/* EXAMPLES */}
+            <div className="mt-8">
+              <h2 className="mb-4 text-xl font-semibold">
+                Examples
+              </h2>
 
-            <div className="space-y-4">
-              {challenge.testCases
-                ?.slice(0, 2)
-                .map(
-                  (
-                    testCase,
-                    index
-                  ) => (
-                    <div
-                      key={index}
-                      className="rounded-xl bg-slate-950 p-4"
-                    >
-                      <p className="mb-2 font-semibold text-emerald-400">
-                        Example{" "}
-                        {index + 1}
-                      </p>
+              <div className="space-y-4">
+                {challenge.testCases
+                  ?.slice(0, 2)
+                  .map(
+                    (
+                      testCase,
+                      index
+                    ) => (
+                      <div
+                        key={index}
+                        className="rounded-xl bg-slate-950 p-4"
+                      >
+                        <p className="mb-2 font-semibold text-emerald-400">
+                          Example{" "}
+                          {index + 1}
+                        </p>
 
-                      <div className="space-y-3 text-sm">
-                        <div>
-                          <p className="font-semibold">
-                            Input
-                          </p>
+                        <div className="space-y-3 text-sm">
+                          <div>
+                            <p className="font-semibold">
+                              Input
+                            </p>
 
-                          <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
+                            <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
 {typeof testCase.input ===
 "string"
   ? testCase.input
@@ -430,15 +436,15 @@ export function CodingWorkspace({
       null,
       2
     )}
-                          </pre>
-                        </div>
+                            </pre>
+                          </div>
 
-                        <div>
-                          <p className="font-semibold">
-                            Output
-                          </p>
+                          <div>
+                            <p className="font-semibold">
+                              Output
+                            </p>
 
-                          <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
+                            <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2">
 {typeof testCase.expectedOutput ===
 "string"
   ? testCase.expectedOutput
@@ -447,47 +453,61 @@ export function CodingWorkspace({
       null,
       2
     )}
-                          </pre>
+                            </pre>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                )}
+                    )
+                  )}
+              </div>
             </div>
-          </div>
 
-          {/* CONSTRAINTS */}
-          <div className="mt-8 rounded-xl bg-slate-950 p-4">
-            <h2 className="mb-3 text-lg font-semibold">
-              Constraints
-            </h2>
+            {/* CONSTRAINTS */}
+            <div className="mt-8 rounded-xl bg-slate-950 p-4">
+              <h2 className="mb-3 text-lg font-semibold">
+                Constraints
+              </h2>
 
-            <ul className="list-disc space-y-2 pl-5 text-slate-300">
-              <li>
-                1 ≤ n ≤ 100000
-              </li>
+              <ul className="list-disc space-y-2 pl-5 text-slate-300">
+                <li>
+                  1 ≤ n ≤ 100000
+                </li>
 
-              <li>
-                Optimize time
-                complexity where
-                possible
-              </li>
+                <li>
+                  Optimize time
+                  complexity where
+                  possible
+                </li>
 
-              <li>
-                Handle edge cases
-              </li>
+                <li>
+                  Handle edge cases
+                </li>
 
-              <li>
-                Expected
-                interview-style
-                solution
-              </li>
-            </ul>
+                <li>
+                  Expected
+                  interview-style
+                  solution
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
+        {/* DIVIDER - Only show on desktop */}
+        {!isMobile && (
+          <div
+            onMouseDown={() => setIsDragging(true)}
+            className="group relative flex w-1 cursor-col-resize items-center justify-center bg-gradient-to-b from-transparent via-white/20 to-transparent hover:via-emerald-400/50 transition-colors"
+          >
+            <div className="absolute flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ChevronLeft size={16} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        )}
+
+        {/* RIGHT - CODING PANEL */}
+        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 flex flex-col min-h-screen lg:min-h-auto">
           <div className="mb-4 flex items-center justify-between">
             <select
               value={language}
@@ -502,7 +522,7 @@ export function CodingWorkspace({
                   ]
                 );
               }}
-              className="rounded-lg bg-slate-800 px-3 py-2"
+              className="rounded-lg bg-slate-800 px-3 py-2 text-white"
             >
               {Object.keys(
                 starters
@@ -524,7 +544,7 @@ export function CodingWorkspace({
           </div>
 
           <Monaco
-            height="500px"
+            height="400px"
             language={
               language === "C++"
                 ? "cpp"
@@ -545,7 +565,7 @@ export function CodingWorkspace({
                 runTests(false)
               }
               disabled={running}
-              className="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3"
+              className="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3 hover:bg-white/5 disabled:opacity-50"
             >
               <Play size={16} />
               Run Code
@@ -559,7 +579,7 @@ export function CodingWorkspace({
                 running ||
                 submitted
               }
-              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-black hover:bg-emerald-400"
+              className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
             >
               <Send size={16} />
               Submit
@@ -572,14 +592,14 @@ export function CodingWorkspace({
               Console Output
             </p>
 
-            <pre className="whitespace-pre-wrap text-sm text-slate-300">
+            <pre className="whitespace-pre-wrap text-sm text-slate-300 max-h-40 overflow-y-auto">
               {String(output)}
             </pre>
           </div>
 
           {/* RESULTS */}
           {results.length > 0 && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-4 max-h-64 overflow-y-auto">
               {results.map(
                 (
                   result,
@@ -614,7 +634,7 @@ export function CodingWorkspace({
                           Input
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
 {String(
   result.input
 )}
@@ -626,7 +646,7 @@ export function CodingWorkspace({
                           Expected
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
 {String(
   result.expectedOutput
 )}
@@ -638,7 +658,7 @@ export function CodingWorkspace({
                           Your Output
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
 {String(
   result.actualOutput
 )}
