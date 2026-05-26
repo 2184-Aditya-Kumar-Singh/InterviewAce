@@ -115,65 +115,74 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid code execution request." }, { status: 400 });
   }
-
-  const config = languageConfig[parsed.data.language];
-  const endpoint = process.env.PISTON_API_URL || "https://emkc.org/api/v2/piston/execute";
-  const pistonApiKey = process.env.PISTON_API_KEY;
-  const useLocal =
-    process.env.CODE_EXECUTION_MODE === "local" ||
-    (process.env.NODE_ENV !== "production" && !process.env.PISTON_API_URL);
-
-  if (useLocal) {
     try {
-      const result = await runLocally(parsed.data.language, parsed.data.code, parsed.data.stdin);
-      return NextResponse.json(result);
-    } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Local code execution failed." },
-        { status: 500 },
-      );
-    }
-  }
+    const languageMap: Record<string, number> = {
+      Java: 62,
+      Python: 71,
+      "C++": 54,
+      JavaScript: 63,
+      C: 50,
+    };
 
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(pistonApiKey ? { Authorization: `Bearer ${pistonApiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        language: config.language,
-        version: config.version,
-        files: [{ name: config.fileName, content: parsed.data.code }],
-        stdin: parsed.data.stdin,
-        compile_timeout: 10_000,
-        run_timeout: 3_000,
-        compile_memory_limit: -1,
-        run_memory_limit: -1,
-      }),
-    });
+    const response = await fetch(
+      "http://localhost:2358/submissions?base64_encoded=false&wait=true",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source_code: parsed.data.code,
+          language_id: languageMap[parsed.data.language],
+          stdin: parsed.data.stdin,
+        }),
+      }
+    );
 
-    const data = await response.json();
-    if (!response.ok) {
-      return NextResponse.json({ error: data.message || "Piston execution failed." }, { status: response.status });
-    }
+    const result = await response.json();
 
     return NextResponse.json({
-      language: data.language,
-      version: data.version,
-      compile: data.compile || null,
-      run: data.run,
+      language: parsed.data.language,
+      version: "Judge0",
+
+      compile: result.compile_output
+        ? {
+            stdout: "",
+            stderr: result.compile_output,
+            output: result.compile_output,
+            code: 1,
+          }
+        : null,
+
+      run: {
+        stdout: result.stdout || "",
+        stderr: result.stderr || "",
+
+        output:
+          result.stdout ||
+          result.stderr ||
+          result.compile_output ||
+          "Program finished with no output.",
+
+        code: result.status?.id || 0,
+      },
     });
   } catch {
     try {
-      const result = await runLocally(parsed.data.language, parsed.data.code, parsed.data.stdin);
+      const result = await runLocally(
+        parsed.data.language,
+        parsed.data.code,
+        parsed.data.stdin
+      );
+
       return NextResponse.json(result);
     } catch {
       return NextResponse.json(
-        { error: "Could not reach Piston and local execution is unavailable on this server." },
-        { status: 503 },
+        {
+          error:
+            "Could not reach Judge0 and local execution is unavailable.",
+        },
+        { status: 503 }
       );
     }
   }
-}
