@@ -967,6 +967,7 @@ const user =
                 persona={
                   persona
                 }
+                round={round}
                 speaking={
                   speaking
                 }
