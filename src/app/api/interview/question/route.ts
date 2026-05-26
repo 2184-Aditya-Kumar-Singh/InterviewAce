@@ -305,6 +305,26 @@ export async function POST(
     } = parsed.data;
 
     const personaBehavior =
+      const roundInstruction =
+  round === "Technical"
+    ? `
+STRICT TECHNICAL ROUND RULES:
+- Ask ONLY technical/software engineering questions
+- NEVER ask HR or behavioral questions
+- NEVER ask teamwork, leadership, strengths/weaknesses, communication, conflict, or personality questions
+- Focus ONLY on coding, projects, debugging, APIs, databases, system design, architecture, DSA, optimization, scalability, backend, frontend, and engineering trade-offs
+`
+    : round === "HR"
+    ? `
+STRICT HR ROUND RULES:
+- Ask ONLY HR/behavioral questions
+- NEVER ask coding or technical implementation questions
+- Focus on teamwork, communication, leadership, ownership, conflict resolution, motivation, and behavior
+`
+    : `
+MIXED ROUND RULES:
+- Alternate between HR and Technical questions
+`;
       {
         "Friendly HR":
           "Warm, conversational, supportive, recruiter-like.",
@@ -323,7 +343,7 @@ export async function POST(
 You are conducting a REALISTIC FAANG-style mock interview.
 
 INTERVIEW SETTINGS:
-
+${roundInstruction}
 Interview Type:
 ${round}
 
