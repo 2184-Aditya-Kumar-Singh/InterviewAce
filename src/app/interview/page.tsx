@@ -750,6 +750,9 @@ const data =
       generatedReport
     );
 
+    // Stop the interview
+    setInterviewStarted(false);
+
     try {
       const authResponse =
   await supabase?.auth.getUser();
@@ -964,7 +967,6 @@ const user =
                 persona={
                   persona
                 }
-                round={round}
                 speaking={
                   speaking
                 }
@@ -1034,7 +1036,7 @@ const user =
                 onClick={
                   finishInterview
                 }
-                className="rounded-2xl bg-white px-7 py-4 font-black text-slate-950"
+                className="rounded-2xl bg-white px-7 py-4 font-black text-slate-950 w-full hover:bg-gray-100 transition"
               >
                 Finish Interview
               </button>
