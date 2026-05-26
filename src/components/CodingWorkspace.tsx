@@ -120,19 +120,9 @@ export function CodingWorkspace({
 
   const [splitPos, setSplitPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     loadChallenge();
-    
-    // Check if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   async function loadChallenge() {
@@ -346,7 +336,7 @@ export function CodingWorkspace({
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] p-6 text-white">
+    <div className="min-h-screen bg-[#0f172a] p-6 text-white flex flex-col">
       {/* HEADER */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -375,8 +365,12 @@ export function CodingWorkspace({
       {/* SPLIT CONTAINER */}
       <div 
         id="split-container"
-        className="grid gap-6 lg:gap-0"
-        style={isMobile ? { gridTemplateColumns: '1fr' } : { gridTemplateColumns: `${splitPos}% 1fr` }}
+        className="flex-1 flex gap-0 overflow-hidden"
+        style={{ 
+          display: 'grid',
+          gridTemplateColumns: `${splitPos}% 4px ${100 - splitPos}%`,
+          gridTemplateRows: '1fr'
+        }}
       >
         {/* LEFT - QUESTION PANEL */}
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 flex flex-col">
@@ -493,21 +487,19 @@ export function CodingWorkspace({
           </div>
         </div>
 
-        {/* DIVIDER - Only show on desktop */}
-        {!isMobile && (
-          <div
-            onMouseDown={() => setIsDragging(true)}
-            className="group relative flex w-1 cursor-col-resize items-center justify-center bg-gradient-to-b from-transparent via-white/20 to-transparent hover:via-emerald-400/50 transition-colors"
-          >
-            <div className="absolute flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ChevronLeft size={16} className="text-slate-400" />
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
+        {/* DIVIDER */}
+        <div
+          onMouseDown={() => setIsDragging(true)}
+          className="group relative flex cursor-col-resize items-center justify-center bg-gradient-to-b from-transparent via-white/20 to-transparent hover:via-emerald-400/50 transition-colors"
+        >
+          <div className="absolute flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ChevronLeft size={16} className="text-slate-400" />
+            <ChevronRight size={16} className="text-slate-400" />
           </div>
-        )}
+        </div>
 
         {/* RIGHT - CODING PANEL */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 flex flex-col min-h-screen lg:min-h-auto">
+        <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 flex flex-col overflow-hidden">
           <div className="mb-4 flex items-center justify-between">
             <select
               value={language}
@@ -544,7 +536,7 @@ export function CodingWorkspace({
           </div>
 
           <Monaco
-            height="400px"
+            height="300px"
             language={
               language === "C++"
                 ? "cpp"
@@ -587,19 +579,19 @@ export function CodingWorkspace({
           </div>
 
           {/* OUTPUT */}
-          <div className="mt-6 rounded-xl bg-black/40 p-4">
+          <div className="mt-4 rounded-xl bg-black/40 p-4 flex-1 overflow-y-auto">
             <p className="mb-3 font-semibold">
               Console Output
             </p>
 
-            <pre className="whitespace-pre-wrap text-sm text-slate-300 max-h-40 overflow-y-auto">
+            <pre className="whitespace-pre-wrap text-sm text-slate-300">
               {String(output)}
             </pre>
           </div>
 
           {/* RESULTS */}
           {results.length > 0 && (
-            <div className="mt-6 space-y-4 max-h-64 overflow-y-auto">
+            <div className="mt-4 space-y-4 max-h-48 overflow-y-auto">
               {results.map(
                 (
                   result,
@@ -634,7 +626,7 @@ export function CodingWorkspace({
                           Input
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto text-xs">
 {String(
   result.input
 )}
@@ -646,7 +638,7 @@ export function CodingWorkspace({
                           Expected
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto text-xs">
 {String(
   result.expectedOutput
 )}
@@ -658,7 +650,7 @@ export function CodingWorkspace({
                           Your Output
                         </p>
 
-                        <pre className="rounded bg-black/40 p-2 overflow-x-auto">
+                        <pre className="rounded bg-black/40 p-2 overflow-x-auto text-xs">
 {String(
   result.actualOutput
 )}
