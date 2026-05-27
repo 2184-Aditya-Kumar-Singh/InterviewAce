@@ -231,10 +231,13 @@ export function CodingWorkspace({
       }
 
       return String(
-        data.run?.stdout ||
-          data.run?.output ||
-          ""
-      ).trim();
+  data.run?.output ||
+  data.run?.stdout ||
+  data.run?.stderr ||
+  data.compile?.output ||
+  data.error ||
+  ""
+).trim();
     } catch {
       return "Execution failed.";
     }
