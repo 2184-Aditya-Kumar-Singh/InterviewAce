@@ -302,8 +302,15 @@ export function CodingWorkspace({
         ).length;
 
       setOutput(
-        `${passed}/${nextResults.length} test cases passed.`
-      );
+        nextResults
+    .map(
+      (r, i) =>
+        `Test ${i + 1}: ${
+          r.passed ? "PASSED" : "FAILED"
+        }\nOutput:\n${r.actualOutput}\n`
+    )
+    .join("\n")
+);
 
       if (submit) {
         setSubmitted(true);
