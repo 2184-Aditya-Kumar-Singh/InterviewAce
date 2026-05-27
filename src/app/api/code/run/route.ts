@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     );
 
     const result = await response.json();
-
+console.log(result);
     return NextResponse.json({
       language: parsed.data.language,
       version: "Judge0",
