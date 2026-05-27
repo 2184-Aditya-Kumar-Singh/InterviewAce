@@ -131,11 +131,21 @@ export async function POST(request: NextRequest) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          source_code: parsed.data.code,
-          language_id: languageMap[parsed.data.language],
-          stdin: parsed.data.stdin,
-        }),
+       body: JSON.stringify({
+  language_id: languageMap[parsed.data.language],
+  source_code: parsed.data.code,
+  stdin: parsed.data.stdin,
+
+  additional_files:
+    parsed.data.language === "Java"
+      ? [
+          {
+            name: "Main.java",
+            content: parsed.data.code,
+          },
+        ]
+      : undefined,
+}),
       }
     );
 
