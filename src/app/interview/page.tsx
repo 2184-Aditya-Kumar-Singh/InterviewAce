@@ -1104,8 +1104,22 @@ const user =
   return (
     <AuthGuard>
       <AppShell>
-        <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-          <div className="space-y-6">
+        <div
+          className={`grid gap-5 ${
+            interviewStarted &&
+            plan === "PREMIUM"
+              ? "xl:grid-cols-2"
+              : "lg:grid-cols-[360px_1fr]"
+          }`}
+        >
+          <div
+            className={`space-y-6 ${
+              interviewStarted &&
+              plan === "PREMIUM"
+                ? "xl:sticky xl:top-6 xl:self-start"
+                : ""
+            }`}
+          >
             {interviewStarted &&
             plan === "PREMIUM" ? (
               <Avatar

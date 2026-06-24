@@ -44,8 +44,8 @@ export function Avatar({
     state === "IDLE";
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-black">
-      <div className="relative aspect-video min-h-[360px] bg-[radial-gradient(circle_at_50%_25%,#123e48,#020617_70%)]">
+    <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-black">
+      <div className="relative aspect-video min-h-[380px] bg-[radial-gradient(circle_at_50%_25%,#123e48,#020617_70%)]">
         {stream ? (
           <video
             ref={videoRef}
@@ -54,8 +54,8 @@ export function Avatar({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="grid h-full min-h-[360px] place-items-center px-8 text-center">
-            <div>
+          <div className="grid h-full min-h-[380px] place-items-center px-6 text-center sm:px-8">
+            <div className="max-w-md">
               <div className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-white/10 bg-white/5 text-emerald-300">
                 {connecting ? (
                   <Loader2 className="animate-spin" />
@@ -63,12 +63,12 @@ export function Avatar({
                   <Video />
                 )}
               </div>
-              <h2 className="mt-5 text-2xl font-black">
+              <h2 className="mt-5 text-2xl font-black leading-tight">
                 {connecting
                   ? "Connecting interviewer..."
                   : "Avatar unavailable"}
               </h2>
-              <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">
+              <p className="mt-3 break-words text-sm leading-6 text-slate-400">
                 {error ||
                   "The live interviewer will appear here when the HeyGen session is ready."}
               </p>
