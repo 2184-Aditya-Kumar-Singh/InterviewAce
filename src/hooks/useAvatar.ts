@@ -31,6 +31,74 @@ export type AvatarState =
 type StreamingAvatarConstructor =
   typeof StreamingAvatar;
 
+function getErrorMessage(
+  error: unknown
+) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "string"
+  ) {
+    return error;
+  }
+
+  if (
+    error &&
+    typeof error === "object"
+  ) {
+    const record =
+      error as Record<
+        string,
+        unknown
+      >;
+
+    const directMessage =
+      record.message ||
+      record.error ||
+      record.detail;
+
+    if (
+      typeof directMessage ===
+      "string"
+    ) {
+      return directMessage;
+    }
+
+    if (
+      record.response &&
+      typeof record.response ===
+        "object"
+    ) {
+      const response =
+        record.response as Record<
+          string,
+          unknown
+        >;
+      const responseMessage =
+        response.message ||
+        response.error ||
+        response.data;
+
+      if (
+        typeof responseMessage ===
+        "string"
+      ) {
+        return responseMessage;
+      }
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Avatar connection failed.";
+    }
+  }
+
+  return "Avatar connection failed.";
+}
+
 export function useAvatar(
   profile: HeyGenAvatarProfile,
   enabled: boolean
@@ -175,9 +243,9 @@ export function useAvatar(
     } catch (startError) {
       console.error(startError);
       setError(
-        startError instanceof Error
-          ? startError.message
-          : "Avatar connection failed."
+        getErrorMessage(
+          startError
+        )
       );
       setState("ERROR");
     }

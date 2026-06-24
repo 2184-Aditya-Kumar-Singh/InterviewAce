@@ -11,7 +11,7 @@ export type HeyGenAvatarProfile = {
 };
 
 const fallbackAvatar =
-  "Ann_Therapist_public";
+  "default";
 
 export function getHeyGenAvatarProfile(
   persona: InterviewPersona,

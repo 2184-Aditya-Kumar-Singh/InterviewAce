@@ -24,9 +24,16 @@ export async function createHeyGenStreamingToken() {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
+    const message =
       data?.message ||
-        data?.error ||
+      data?.error ||
+      data?.data?.message ||
+      data?.data?.error;
+
+    throw new Error(
+      typeof message === "string"
+        ? message
+        :
         "Could not create HeyGen streaming token."
     );
   }
