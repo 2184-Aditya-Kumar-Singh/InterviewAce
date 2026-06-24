@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -10,7 +11,15 @@ import { AppShell } from "@/components/AppShell";
 
 import { AuthGuard } from "@/components/AuthGuard";
 
-import { InterviewerAvatar } from "@/components/InterviewerAvatar";
+import { Avatar } from "@/components/interview/Avatar";
+import { Microphone } from "@/components/interview/Microphone";
+import {
+  StatusIndicator,
+} from "@/components/interview/StatusIndicator";
+import {
+  Transcript,
+  type TranscriptItem,
+} from "@/components/interview/Transcript";
 
 import { supabase } from "@/lib/supabase";
 
@@ -18,6 +27,9 @@ import {
   generateQuestion,
   createInterviewReport,
 } from "@/lib/interview-engine";
+import { getHeyGenAvatarProfile } from "@/lib/heygen/avatar";
+import { useAvatar } from "@/hooks/useAvatar";
+import { useInterview } from "@/hooks/useInterview";
 
 import type {
   Difficulty,
@@ -79,6 +91,7 @@ type SpeechRecognitionLike = {
       ) => void)
     | null;
   start: () => void;
+  stop: () => void;
 };
 
 const historyLimit = 80;
@@ -264,6 +277,52 @@ export default function InterviewPage() {
       null
     );
 
+  const lastSpokenQuestionIdRef =
+    useRef<string | null>(null);
+
+  const avatarProfile =
+    useMemo(
+      () =>
+        getHeyGenAvatarProfile(
+          persona,
+          round
+        ),
+      [persona, round]
+    );
+
+  const interview =
+    useInterview();
+
+  const avatar =
+    useAvatar(
+      avatarProfile,
+      plan === "PREMIUM" &&
+        interviewStarted
+    );
+
+  const [
+    transcript,
+    setTranscript,
+  ] = useState<TranscriptItem[]>(
+    []
+  );
+
+  function addTranscript(
+    speaker:
+      | "interviewer"
+      | "candidate",
+    text: string
+  ) {
+    setTranscript((items) => [
+      ...items,
+      {
+        id: crypto.randomUUID(),
+        speaker,
+        text,
+      },
+    ]);
+  }
+
   useEffect(() => {
     async function loadPlan() {
       try {
@@ -350,10 +409,19 @@ const data =
     recog.lang = "en-US";
 
     recog.onstart = () =>
-      setListening(true);
+      {
+        setListening(true);
+        interview.transitionTo(
+          "LISTENING"
+        );
+        avatar.showListening();
+      };
 
     recog.onend = () =>
-      setListening(false);
+      {
+        setListening(false);
+        avatar.stopListening();
+      };
 
     recog.onresult = (
       event: {
@@ -374,10 +442,18 @@ const data =
         transcript
       );
 
+      addTranscript(
+        "candidate",
+        transcript
+      );
+
       if (
         plan ===
         "PREMIUM"
       ) {
+        interview.transitionTo(
+          "PROCESSING"
+        );
         setTimeout(() => {
           submitAnswer(
             transcript
@@ -388,7 +464,11 @@ const data =
 
     recognitionRef.current =
       recog;
-  }, [plan]);
+  }, [
+    plan,
+    avatar,
+    interview,
+  ]);
 
   useEffect(() => {
     if (!interviewStarted)
@@ -416,7 +496,8 @@ const data =
       return;
 
     if (
-      plan === "FREE"
+      plan === "FREE" ||
+      plan === "PREMIUM"
     )
       return;
 
@@ -450,6 +531,46 @@ const data =
     question,
     voiceEnabled,
     plan,
+  ]);
+
+  useEffect(() => {
+    if (
+      plan !== "PREMIUM" ||
+      !interviewStarted ||
+      !question ||
+      lastSpokenQuestionIdRef.current ===
+        question.id
+    ) {
+      return;
+    }
+
+    lastSpokenQuestionIdRef.current =
+      question.id;
+
+    recognitionRef.current?.stop();
+    interview.transitionTo(
+      "AVATAR_SPEAKING"
+    );
+
+    avatar
+      .speak(question.question)
+      .then(() => {
+        interview.transitionTo(
+          "WAITING_FOR_USER"
+        );
+      })
+      .catch((error) => {
+        console.error(error);
+        interview.transitionTo(
+          "ERROR"
+        );
+      });
+  }, [
+    avatar,
+    interview,
+    interviewStarted,
+    plan,
+    question,
   ]);
 
   async function analyzeJd() {
@@ -534,28 +655,53 @@ const data =
       return;
     }
 
-    setInterviewStarted(true);
-
-    const firstQuestion =
-      await generateQuestion({
-        resume,
-        jd,
-        difficulty,
-        round,
-        persona,
-        plan,
-        asked:
-          getHistory(
-            "interview"
-          ),
-      });
-
-    setQuestion(firstQuestion);
-
-    rememberQuestion(
-      "interview",
-      firstQuestion.question
+    setLoading("starting");
+    interview.transitionTo(
+      "PROCESSING"
     );
+    setInterviewStarted(true);
+    setTranscript([]);
+    lastSpokenQuestionIdRef.current =
+      null;
+
+    try {
+      const firstQuestion =
+        await generateQuestion({
+          resume,
+          jd,
+          difficulty,
+          round,
+          persona,
+          plan,
+          asked:
+            getHistory(
+              "interview"
+            ),
+        });
+
+      setQuestion(firstQuestion);
+
+      addTranscript(
+        "interviewer",
+        firstQuestion.question
+      );
+
+      rememberQuestion(
+        "interview",
+        firstQuestion.question
+      );
+
+      if (plan !== "PREMIUM") {
+        interview.transitionTo(
+          "WAITING_FOR_USER"
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      interview.transitionTo("ERROR");
+    } finally {
+      setLoading("");
+    }
   }
 
   async function submitAnswer(
@@ -566,6 +712,18 @@ const data =
     const finalAnswer =
       customAnswer ||
       answer;
+
+    setLoading("thinking");
+    interview.transitionTo(
+      "PROCESSING"
+    );
+
+    if (!customAnswer) {
+      addTranscript(
+        "candidate",
+        finalAnswer
+      );
+    }
 
     const nextAnswers = [
       ...answers,
@@ -684,6 +842,7 @@ const data =
         }
 
         setShowCoding(true);
+        setLoading("");
 
         return;
       } catch (err) {
@@ -721,10 +880,23 @@ const data =
       nextQuestion
     );
 
+    addTranscript(
+      "interviewer",
+      nextQuestion.question
+    );
+
     rememberQuestion(
       "interview",
       nextQuestion.question
     );
+
+    if (plan !== "PREMIUM") {
+      interview.transitionTo(
+        "WAITING_FOR_USER"
+      );
+    }
+
+    setLoading("");
   }
 
   async function skipQuestion() {
@@ -821,6 +993,10 @@ const user =
     }
   ) {
     setShowCoding(false);
+    setLoading("thinking");
+    interview.transitionTo(
+      "PROCESSING"
+    );
 
     const review =
       result.review;
@@ -869,6 +1045,11 @@ const user =
       `${result.challenge.title}\n${result.challenge.prompt}`
     );
 
+    addTranscript(
+      "candidate",
+      `Submitted ${result.language} solution for ${result.challenge.title}.`
+    );
+
     setAnswers(nextAnswers);
 
     const nextQuestion =
@@ -901,10 +1082,23 @@ const user =
       nextQuestion
     );
 
+    addTranscript(
+      "interviewer",
+      nextQuestion.question
+    );
+
     rememberQuestion(
       "interview",
       nextQuestion.question
     );
+
+    if (plan !== "PREMIUM") {
+      interview.transitionTo(
+        "WAITING_FOR_USER"
+      );
+    }
+
+    setLoading("");
   }
 
   return (
@@ -912,90 +1106,106 @@ const user =
       <AppShell>
         <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
           <div className="space-y-6">
-            <InterviewSetup
-              resumeFile={
-                resumeFile
-              }
-              setResumeFile={
-                setResumeFile
-              }
-              jdText={jdText}
-              setJdText={
-                setJdText
-              }
-              difficulty={
-                difficulty
-              }
-              setDifficulty={
-                setDifficulty
-              }
-              round={round}
-              setRound={
-                setRound
-              }
-              plan={plan}
-              setPlan={setPlan}
-              persona={
-                persona
-              }
-              setPersona={
-                setPersona
-              }
-              parsedResume={
-                resume
-              }
-              onAnalyze={
-                analyzeJd
-              }
-              onStart={
-                startInterview
-              }
-              loading={
-                loading !==
-                ""
-              }
-              analyzing={
-                analyzing
-              }
-            />
-          </div>
-
-          <div className="space-y-6">
-            {plan ===
-              "PREMIUM" && (
-              <InterviewerAvatar
+            {interviewStarted &&
+            plan === "PREMIUM" ? (
+              <Avatar
+                stream={
+                  avatar.mediaStream
+                }
+                state={avatar.state}
+                error={avatar.error}
+                profile={
+                  avatarProfile
+                }
+              />
+            ) : (
+              <InterviewSetup
+                resumeFile={
+                  resumeFile
+                }
+                setResumeFile={
+                  setResumeFile
+                }
+                jdText={jdText}
+                setJdText={
+                  setJdText
+                }
+                difficulty={
+                  difficulty
+                }
+                setDifficulty={
+                  setDifficulty
+                }
+                round={round}
+                setRound={
+                  setRound
+                }
+                plan={plan}
+                setPlan={setPlan}
                 persona={
                   persona
                 }
-                round={round}
-                speaking={
-                  speaking
+                setPersona={
+                  setPersona
                 }
-                listening={
-                  listening
+                parsedResume={
+                  resume
                 }
-                ttsEnabled={
-                  voiceEnabled
+                onAnalyze={
+                  analyzeJd
                 }
-                variant={
-                  plan ===
-                  "PREMIUM"
-                    ? "call"
-                    : "compact"
+                onStart={
+                  startInterview
                 }
-                onToggleTts={() =>
-                  setVoiceEnabled(
-                    !voiceEnabled
-                  )
+                loading={
+                  loading !== ""
                 }
-                onStartListening={() => {
-                  if (
-                    plan ===
-                    "PREMIUM"
-                  ) {
-                    recognitionRef.current?.start();
+                analyzing={
+                  analyzing
+                }
+              />
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {interviewStarted && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5">
+                <StatusIndicator
+                  status={
+                    avatar.error
+                      ? "ERROR"
+                      : interview.status
                   }
-                }}
+                />
+
+                {plan ===
+                  "PREMIUM" && (
+                  <Microphone
+                    listening={
+                      listening
+                    }
+                    disabled={
+                      loading !==
+                        "" ||
+                      avatar.isSpeaking ||
+                      interview.isBusy
+                    }
+                    onClick={() => {
+                      if (listening) {
+                        recognitionRef.current?.stop();
+                        return;
+                      }
+
+                      recognitionRef.current?.start();
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {interviewStarted && (
+              <Transcript
+                items={transcript}
               />
             )}
 
@@ -1015,7 +1225,9 @@ const user =
                 skipQuestion
               }
               loading={
-                loading !== ""
+                loading !== "" ||
+                avatar.isSpeaking ||
+                interview.isBusy
               }
               secondsLeft={
                 secondsLeft
@@ -1028,6 +1240,7 @@ const user =
                 listening
               }
               speaking={
+                avatar.isSpeaking ||
                 speaking
               }
             />
