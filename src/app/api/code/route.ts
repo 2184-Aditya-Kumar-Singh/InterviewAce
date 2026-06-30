@@ -152,6 +152,7 @@ Rules:
 - Hidden testcase count should be assumed as 5
 - Avoid trivia, syntax-only, or generic "write a CRUD API" questions
 - Prefer topics connected to the role skills when possible
+- CRITICAL: The problem MUST be solvable as a general-purpose programming exercise in Java, Python, C++, C, or JavaScript. NEVER generate a SQL-only question, a database query challenge, a query-writing problem, or anything that requires a SQL engine. If the role mentions SQL or databases, instead generate an algorithmic problem (e.g. simulating a query result with arrays/structs, parsing tabular data, joining datasets using hashmaps) that can be solved in a standard programming language — do not ask the candidate to write actual SQL syntax.
 - Do not generate Two Sum, palindrome, fizzbuzz, or any question already listed above unless the avoided list is empty
 - If a skill points to the same old problem, choose a different problem pattern
 - Return ONLY RAW JSON

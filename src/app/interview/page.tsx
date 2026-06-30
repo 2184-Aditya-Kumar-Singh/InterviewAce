@@ -584,6 +584,15 @@ const data =
     return () =>
       clearInterval(timer);
   }, [interviewStarted]);
+  useEffect(() => {
+  if (
+    !interviewStarted ||
+    secondsLeft > 0
+  )
+    return;
+
+  finishInterview();
+}, [secondsLeft, interviewStarted]);
 
   useEffect(() => {
     if (
@@ -792,7 +801,7 @@ const data =
     interview.transitionTo(
       "PROCESSING"
     );
-
+   setSecondsLeft(planDuration[plan]);
     try {
       const currentJd =
         jd || (await analyzeJd());
@@ -1422,52 +1431,54 @@ const user =
               />
             )}
 
-            <InterviewSession
-              question={
-                question
-              }
-              answers={answers}
-              answer={answer}
-              setAnswer={
-                setAnswer
-              }
-              onSubmit={() =>
-                submitAnswer()
-              }
-              onSkip={
-                skipQuestion
-              }
-              loading={
-                loading !== "" ||
-                avatar.isSpeaking ||
-                interview.isBusy
-              }
-              secondsLeft={
-                secondsLeft
-              }
-              premium={
-                plan ===
-                "PREMIUM"
-              }
-              listening={
-                listening
-              }
-              speaking={
-                avatar.isSpeaking ||
-                speaking
-              }
-            />
-
             {interviewStarted && (
-              <button
-                onClick={
-                  finishInterview
-                }
-                className="rounded-2xl bg-white px-7 py-4 font-black text-slate-950 w-full hover:bg-gray-100 transition"
-              >
-                Finish Interview
-              </button>
-            )}
+  <InterviewSession
+    question={
+      question
+    }
+    answers={answers}
+    answer={answer}
+    setAnswer={
+      setAnswer
+    }
+    onSubmit={() =>
+      submitAnswer()
+    }
+    onSkip={
+      skipQuestion
+    }
+    loading={
+      loading !== "" ||
+      avatar.isSpeaking ||
+      interview.isBusy
+    }
+    secondsLeft={
+      secondsLeft
+    }
+    premium={
+      plan ===
+      "PREMIUM"
+    }
+    listening={
+      listening
+    }
+    speaking={
+      avatar.isSpeaking ||
+      speaking
+    }
+  />
+)}
+
+{interviewStarted && (
+  <button
+    onClick={
+      finishInterview
+    }
+    className="rounded-2xl bg-white px-7 py-4 font-black text-slate-950 w-full hover:bg-gray-100 transition"
+  >
+    Finish Interview
+  </button>
+)}
 
             <InterviewReport
               report={report}
