@@ -47,8 +47,8 @@ export function Avatar({
     state === "IDLE";
 
   return (
-    <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-black">
-      <div className="relative aspect-video min-h-[380px] bg-[radial-gradient(circle_at_50%_25%,#123e48,#020617_70%)]">
+    <section className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-black">
+  <div className="relative flex-1 min-h-[380px] bg-[radial-gradient(circle_at_50%_25%,#123e48,#020617_70%)]">
         <video
           ref={videoRef}
           autoPlay
