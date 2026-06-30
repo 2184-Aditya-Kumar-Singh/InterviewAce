@@ -66,9 +66,9 @@ const planDuration: Record<
   InterviewPlan,
   number
 > = {
-  FREE: 900,
-  PRO: 1800,
-  PREMIUM: 2700,
+  FREE: 120,
+  PRO: 120,
+  PREMIUM: 120,
 };
 
 type SpeechRecognitionLike = {
@@ -256,7 +256,7 @@ export default function InterviewPage() {
   const [
     secondsLeft,
     setSecondsLeft,
-  ] = useState(1800);
+  ] = useState(120);
 
   const [
     showCoding,
