@@ -78,7 +78,11 @@ async function runLocally(language: keyof typeof languageConfig, code: string, s
     await writeFile(sourcePath, code, "utf8");
 
     if (language === "Python") {
-      return { language: "python", version: "local", compile: null, run: await runProcess("python", [sourcePath], dir, stdin) };
+      const result = await runProcess("python3", [sourcePath], dir, stdin);
+      if (result.code === "timeout" || (typeof result.code === "number" && result.code !== 0 && result.stderr.includes("ENOENT"))) {
+        return { language: "python", version: "local", compile: null, run: await runProcess("python", [sourcePath], dir, stdin) };
+      }
+      return { language: "python", version: "local", compile: null, run: result };
     }
     if (language === "JavaScript") {
       return { language: "javascript", version: "local", compile: null, run: await runProcess("node", [sourcePath], dir, stdin) };
@@ -116,65 +120,79 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid code execution request." }, { status: 400 });
   }
     try {
-    const languageMap: Record<string, number> = {
-      Java: 62,
-      Python: 71,
-      "C++": 54,
-      JavaScript: 63,
-      C: 50,
+   const languageMap: Record<
+      string,
+      { language: string; version: string }
+    > = {
+      Java: { language: "java", version: "15.0.2" },
+      Python: { language: "python", version: "3.10.0" },
+      "C++": { language: "c++", version: "10.2.0" },
+      JavaScript: {
+        language: "javascript",
+        version: "18.15.0",
+      },
+      C: { language: "c", version: "10.2.0" },
     };
 
-    const response = await fetch(
-      "http://localhost:2358/submissions?base64_encoded=false&wait=true",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-       body: JSON.stringify({
-  language_id: languageMap[parsed.data.language],
-  source_code: parsed.data.code,
-  stdin: parsed.data.stdin,
+    const pistonUrl =
+      process.env.PISTON_API_URL ||
+      "https://emkc.org/api/v2/piston/execute";
 
-  additional_files:
-    parsed.data.language === "Java"
-      ? [
-          {
-            name: "Main.java",
-            content: parsed.data.code,
-          },
-        ]
-      : undefined,
-}),
-      }
-    );
+    const response = await fetch(pistonUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.PISTON_API_KEY
+          ? {
+              Authorization: process.env
+                .PISTON_API_KEY as string,
+            }
+          : {}),
+      },
+      body: JSON.stringify({
+        language:
+          languageMap[parsed.data.language].language,
+        version:
+          languageMap[parsed.data.language].version,
+        files: [{ content: parsed.data.code }],
+        stdin: parsed.data.stdin,
+      }),
+    });
 
     const result = await response.json();
-console.log(result);
+    console.log(result);
+
+    const compileFailed =
+      result.compile &&
+      result.compile.code !== 0;
+
     return NextResponse.json({
       language: parsed.data.language,
-      version: "Judge0",
+      version: "Piston",
 
-      compile: result.compile_output
+      compile: compileFailed
         ? {
             stdout: "",
-            stderr: result.compile_output,
-            output: result.compile_output,
+            stderr: result.compile.stderr || "",
+            output:
+              result.compile.output ||
+              result.compile.stderr ||
+              "",
             code: 1,
           }
         : null,
 
       run: {
-        stdout: result.stdout || "",
-        stderr: result.stderr || "",
+        stdout: result.run?.stdout || "",
+        stderr: result.run?.stderr || "",
 
         output:
-          result.stdout ||
-          result.stderr ||
-          result.compile_output ||
+          result.run?.output ||
+          result.run?.stdout ||
+          result.run?.stderr ||
           "Program finished with no output.",
 
-        code: result.status?.id || 0,
+        code: result.run?.code ?? 0,
       },
     });
   } catch {
