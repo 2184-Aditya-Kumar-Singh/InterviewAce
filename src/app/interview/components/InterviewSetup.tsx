@@ -66,6 +66,8 @@ type Props = {
   loading: boolean;
 
   analyzing: boolean;
+
+  message?: string;
 };
 
 export function InterviewSetup({
@@ -102,6 +104,8 @@ export function InterviewSetup({
   loading,
 
   analyzing,
+
+  message,
 }: Props) {
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-5 backdrop-blur-xl">
@@ -210,7 +214,8 @@ export function InterviewSetup({
           <button
             onClick={onAnalyze}
             disabled={
-              analyzing
+              analyzing ||
+              loading
             }
             className="mt-4 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.02] disabled:opacity-70"
           >
@@ -396,12 +401,22 @@ export function InterviewSetup({
         </div>
 
         {/* START */}
+        {message && (
+          <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+            {message}
+          </div>
+        )}
+
         <button
           onClick={onStart}
-          disabled={loading}
+          disabled={
+            loading ||
+            analyzing
+          }
           className="w-full rounded-2xl bg-white px-6 py-4 text-base font-black text-slate-950 transition hover:scale-[1.01] disabled:opacity-70"
         >
-          {loading
+          {loading ||
+          analyzing
             ? "Starting Interview..."
             : "Start AI Interview"}
         </button>

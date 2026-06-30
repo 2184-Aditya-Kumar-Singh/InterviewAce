@@ -226,6 +226,11 @@ export default function InterviewPage() {
     useState(false);
 
   const [
+    setupMessage,
+    setSetupMessage,
+  ] = useState("");
+
+  const [
     interviewStarted,
     setInterviewStarted,
   ] = useState(false);
@@ -681,6 +686,15 @@ const data =
 
   async function analyzeJd() {
     try {
+      setSetupMessage("");
+
+      if (!jdText.trim()) {
+        setSetupMessage(
+          "Paste the job description first, then start the interview."
+        );
+        return null;
+      }
+
       setAnalyzing(true);
 
       let currentResume =
@@ -742,39 +756,62 @@ const data =
       const data =
         await response.json();
 
-      setJd(
-        data.analysis
-      );
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Could not analyze the job description."
+        );
+      }
+
+      if (!data.analysis) {
+        throw new Error(
+          "The job description analysis did not return enough information."
+        );
+      }
+
+      setJd(data.analysis);
+
+      return data.analysis as JDAnalysis;
     } catch (err) {
       console.error(err);
+      setSetupMessage(
+        err instanceof Error
+          ? err.message
+          : "Could not analyze the resume and job description."
+      );
+      return null;
     } finally {
       setAnalyzing(false);
     }
   }
 
   async function startInterview() {
-    if (!jd) {
-      alert(
-        "Please analyze JD first."
-      );
-
-      return;
-    }
-
     setLoading("starting");
+    setSetupMessage("");
     interview.transitionTo(
       "PROCESSING"
     );
-    setInterviewStarted(true);
-    setTranscript([]);
-    lastSpokenQuestionIdRef.current =
-      null;
 
     try {
+      const currentJd =
+        jd || (await analyzeJd());
+
+      if (!currentJd) {
+        interview.transitionTo(
+          "WAITING_FOR_USER"
+        );
+        return;
+      }
+
+      setInterviewStarted(true);
+      setTranscript([]);
+      lastSpokenQuestionIdRef.current =
+        null;
+
       const firstQuestion =
         await generateQuestion({
           resume,
-          jd,
+          jd: currentJd,
           difficulty,
           round,
           persona,
@@ -805,6 +842,11 @@ const data =
     } catch (error) {
       console.error(error);
       interview.transitionTo("ERROR");
+      setSetupMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not start the interview."
+      );
     } finally {
       setLoading("");
     }
@@ -1292,6 +1334,9 @@ const user =
                 }
                 analyzing={
                   analyzing
+                }
+                message={
+                  setupMessage
                 }
               />
             )}
