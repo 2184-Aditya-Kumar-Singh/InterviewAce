@@ -460,6 +460,8 @@ ${jd?.requiredSkills?.join(", ") || ""}
 Missing Skills:
 ${jd?.missingSkills?.join(", ") || ""}
 
+NOTE: "Missing Skills" means the candidate's resume does NOT show this skill. If you reference a missing skill, only ask a gap-check question (see rules below), never a deep technical question assuming hands-on expertise.
+
 PREVIOUS QUESTIONS:
 ${asked.join("\n")}
 ${followUpInstruction}
@@ -474,7 +476,9 @@ IMPORTANT RULES:
 - Treat PREVIOUS QUESTIONS as a strict do-not-ask list
 - Do not repeat the same question, same scenario, same concept, or same resume project angle from PREVIOUS QUESTIONS
 - If a similar question would be useful, change the competency being tested instead of rewording it
-- Anchor the question in a specific resume project, skill, missing skill, or JD responsibility whenever available
+- CRITICAL — SKILL GROUNDING RULE: Do NOT ask deep technical questions about a specific tool, language, or framework (e.g. "explain how R handles X") unless that exact skill appears in the candidate's resume Skills or Projects, OR the candidate mentioned it themselves in a previous answer in this interview. The JD's required skills list is for identifying GAPS, not for assuming the candidate has hands-on knowledge.
+- If a skill is in the JD's requiredSkills or missingSkills but NOT in the candidate's resume or prior answers, you may only ask an honest GAP-CHECK question like "This role requires experience with [skill] — have you worked with it, even briefly, or how would you approach learning it quickly?" Do NOT ask them to explain internals, write code, or demonstrate deep expertise in a skill they have never claimed to know.
+- Prioritize anchoring questions in: (1) something the candidate said in a previous answer this interview, (2) a specific resume project or skill, (3) a JD responsibility that overlaps with resume skills. Only fall back to a pure gap-check question (as defined above) if none of the above give you anything to ask about.
 - Technical questions must evaluate real engineering judgment: debugging, trade-offs, scalability, APIs, databases, algorithms, testing, security, or production incidents
 - HR questions must evaluate ownership, conflict, teamwork, clarity, motivation, and evidence from past work
 - Mixed interviews must alternate between HR and Technical using previous questions as history

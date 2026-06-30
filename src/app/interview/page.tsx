@@ -817,10 +817,7 @@ const data =
           round,
           persona,
           plan,
-          asked:
-            getHistory(
-              "interview"
-            ),
+          asked: [],
           qaHistory: [],
         });
 
@@ -1293,84 +1290,88 @@ const user =
         }
       >
         <div
-          className={`grid min-w-0 gap-5 ${
-            interviewStarted &&
-            plan === "PREMIUM"
-              ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-              : "lg:grid-cols-[360px_1fr]"
-          }`}
-        >
-         <div
-  className={`min-w-0 space-y-6 ${
-    interviewStarted &&
-    plan === "PREMIUM"
-      ? "xl:sticky xl:top-6 xl:self-start xl:h-[calc(100vh-3rem)]"
-      : ""
+  className={`grid min-w-0 gap-5 ${
+    interviewStarted
+      ? plan === "PREMIUM"
+        ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+        : "grid-cols-1"
+      : "lg:grid-cols-[360px_1fr]"
   }`}
 >
-            {interviewStarted &&
-            plan === "PREMIUM" ? (
-              <Avatar
-                state={avatar.state}
-                error={avatar.error}
-                profile={
-                  avatarProfile
-                }
-                onVideoReady={
-                  avatar.attachVideo
-                }
-              />
-            ) : (
-              <InterviewSetup
-                resumeFile={
-                  resumeFile
-                }
-                setResumeFile={
-                  setResumeFile
-                }
-                jdText={jdText}
-                setJdText={
-                  setJdText
-                }
-                difficulty={
-                  difficulty
-                }
-                setDifficulty={
-                  setDifficulty
-                }
-                round={round}
-                setRound={
-                  setRound
-                }
-                plan={plan}
-                setPlan={setPlan}
-                persona={
-                  persona
-                }
-                setPersona={
-                  setPersona
-                }
-                parsedResume={
-                  resume
-                }
-                onAnalyze={
-                  analyzeJd
-                }
-                onStart={
-                  startInterview
-                }
-                loading={
-                  loading !== ""
-                }
-                analyzing={
-                  analyzing
-                }
-                message={
-                  setupMessage
-                }
-              />
-            )}
-          </div>
+        {(!interviewStarted ||
+  plan === "PREMIUM") && (
+  <div
+    className={`min-w-0 space-y-6 ${
+      interviewStarted &&
+      plan === "PREMIUM"
+        ? "xl:sticky xl:top-6 xl:self-start xl:h-[calc(100vh-3rem)]"
+        : ""
+    }`}
+  >
+    {interviewStarted &&
+    plan === "PREMIUM" ? (
+      <Avatar
+        state={avatar.state}
+        error={avatar.error}
+        profile={
+          avatarProfile
+        }
+        onVideoReady={
+          avatar.attachVideo
+        }
+      />
+    ) : (
+      <InterviewSetup
+        resumeFile={
+          resumeFile
+        }
+        setResumeFile={
+          setResumeFile
+        }
+        jdText={jdText}
+        setJdText={
+          setJdText
+        }
+        difficulty={
+          difficulty
+        }
+        setDifficulty={
+          setDifficulty
+        }
+        round={round}
+        setRound={
+          setRound
+        }
+        plan={plan}
+        setPlan={setPlan}
+        persona={
+          persona
+        }
+        setPersona={
+          setPersona
+        }
+        parsedResume={
+          resume
+        }
+        onAnalyze={
+          analyzeJd
+        }
+        onStart={
+          startInterview
+        }
+        loading={
+          loading !== ""
+        }
+        analyzing={
+          analyzing
+        }
+        message={
+          setupMessage
+        }
+      />
+    )}
+  </div>
+)}
 
           <div className="min-w-0 space-y-6">
             {interviewStarted && (
