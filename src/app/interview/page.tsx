@@ -56,6 +56,7 @@ import { InterviewReport } from "./components/InterviewReport";
 const blankResume: ParsedResume =
   {
     rawText: "",
+    name: undefined,
     skills: [],
     education: [],
     projects: [],
@@ -66,8 +67,8 @@ const planDuration: Record<
   InterviewPlan,
   number
 > = {
-  FREE: 120,
-  PRO: 120,
+  FREE: 1800,
+  PRO: 1800,
   PREMIUM: 120,
 };
 
@@ -256,7 +257,7 @@ export default function InterviewPage() {
   const [
     secondsLeft,
     setSecondsLeft,
-  ] = useState(120);
+  ] = useState(1800);
 
   const [
     showCoding,
@@ -820,6 +821,7 @@ const data =
             getHistory(
               "interview"
             ),
+          qaHistory: [],
         });
 
       setQuestion(firstQuestion);
@@ -1025,6 +1027,20 @@ const data =
               a.question
           ),
         ],
+
+        qaHistory:
+          nextAnswers
+            .filter(
+              (a) =>
+                a.questionType !==
+                "coding"
+            )
+            .map((a) => ({
+              question:
+                a.question,
+              answer:
+                a.answer,
+            })),
       });
 
     setQuestion(
@@ -1227,6 +1243,20 @@ const user =
               a.question
           ),
         ],
+
+        qaHistory:
+          nextAnswers
+            .filter(
+              (a) =>
+                a.questionType !==
+                "coding"
+            )
+            .map((a) => ({
+              question:
+                a.question,
+              answer:
+                a.answer,
+            })),
       });
 
     setQuestion(

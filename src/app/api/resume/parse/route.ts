@@ -72,6 +72,7 @@ Parse this resume for mock interview generation.
 Return ONLY raw JSON:
 {
   "rawText": "",
+  "name": "",
   "skills": [],
   "education": [],
   "projects": [],
@@ -79,6 +80,7 @@ Return ONLY raw JSON:
 }
 
 Rules:
+- name should be the candidate's full name as it appears at the top of the resume. If you cannot confidently identify a name, return an empty string.
 - Keep rawText as the original resume text.
 - skills should include technical and relevant soft skills, normalized and deduplicated.
 - projects should be specific project lines with tech stack, role, and impact when present.
@@ -112,6 +114,7 @@ ${text.slice(0, 18000)}
     return NextResponse.json({
       resume: {
         rawText: text,
+        name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : fallback.name,
         skills: Array.isArray(parsed.skills) && parsed.skills.length ? parsed.skills : fallback.skills,
         education: Array.isArray(parsed.education) ? parsed.education : fallback.education,
         projects: Array.isArray(parsed.projects) ? parsed.projects : fallback.projects,

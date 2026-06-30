@@ -46,7 +46,33 @@ export function extractSkills(text: string) {
     })
     .slice(0, 14);
 }
+function extractName(text: string) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
+  for (const line of lines.slice(0, 5)) {
+    const looksLikeContact =
+      /@|http|www\.|\+?\d{3,}|resume|curriculum|cv\b/i.test(line);
+    const wordCount = line.split(/\s+/).length;
+
+    if (
+      !looksLikeContact &&
+      wordCount >= 2 &&
+      wordCount <= 4 &&
+      /^[A-Za-z.\s'-]+$/.test(line) &&
+      line.length <= 40
+    ) {
+      return line
+        .split(/\s+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    }
+  }
+
+  return undefined;
+}
 export function parseResumeText(text: string): ParsedResume {
   const lines = text
     .split(/\r?\n/)
@@ -66,6 +92,7 @@ export function parseResumeText(text: string): ParsedResume {
 
   return {
     rawText: text,
+    name: extractName(text),
     skills: skills.length ? skills : ["communication", "problem solving"],
     education,
     projects,

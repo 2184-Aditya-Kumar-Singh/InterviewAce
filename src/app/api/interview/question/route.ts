@@ -40,6 +40,15 @@ const schema = z.object({
   asked: z
     .array(z.string())
     .optional(),
+
+  qaHistory: z
+    .array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      })
+    )
+    .optional(),
 });
 
 function normalizeQuestion(
@@ -302,7 +311,45 @@ export async function POST(
       persona,
 
       asked = [],
+
+      qaHistory = [],
     } = parsed.data;
+
+    // FIRST QUESTION: greet by name (if available) and ask for an introduction
+    if (asked.length === 0) {
+      const candidateName =
+        typeof resume?.name === "string" &&
+        resume.name.trim()
+          ? resume.name
+              .trim()
+              .split(/\s+/)[0]
+          : "";
+
+      const greeting = candidateName
+        ? `Hi ${candidateName}, welcome! `
+        : `Hi, welcome! `;
+
+      return NextResponse.json({
+        success: true,
+
+        question: {
+          id: crypto.randomUUID(),
+
+          question: `${greeting}Let's get started — could you please introduce yourself? Walk me through your background, what you've worked on, and what you're looking for in this role.`,
+
+          focusArea:
+            "Introduction",
+
+          round: "HR",
+
+          expectedSignals: [
+            "clarity",
+            "relevant background",
+            "communication",
+          ],
+        },
+      });
+    }
 
     const personaBehavior = {
   "Friendly HR":
@@ -338,6 +385,35 @@ STRICT HR ROUND RULES:
 MIXED ROUND RULES:
 - Alternate between HR and Technical questions
 `;
+
+const lastAnswer =
+  qaHistory[qaHistory.length - 1]
+    ?.answer || "";
+
+const isFollowingUpOnIntro =
+  qaHistory.length === 1;
+
+const followUpInstruction =
+  qaHistory.length > 0
+    ? `
+CANDIDATE'S MOST RECENT ANSWER:
+"${lastAnswer}"
+
+${
+  isFollowingUpOnIntro
+    ? `
+This was their self-introduction. Your task now:
+1. First, check if anything they mentioned (a project, skill, technology, or responsibility) connects to the job description's required skills (${jd?.requiredSkills?.join(", ") || ""}). If yes, ask a natural follow-up question that digs deeper into that specific thing they mentioned.
+2. If their introduction did NOT mention anything relevant or questionable in relation to the JD, do NOT force a follow-up on it — instead, pivot and ask a fresh question of your own, grounded in the JD's required skills or the candidate's resume (skills/projects), as a natural interviewer would after a generic intro.
+3. Make the transition feel conversational, e.g. "Thanks for that — you mentioned X, can you tell me more about..." or, if pivoting, "Thanks for the introduction. Let's dive into..."
+`
+    : `
+Ask a natural follow-up that builds on this specific answer where relevant, or moves to a new but related competency if the answer was thin, generic, or didn't leave anything substantive to follow up on.
+`
+}
+`
+    : "";
+
     const prompt = `
 You are conducting a REALISTIC FAANG-style mock interview.
 
@@ -386,6 +462,7 @@ ${jd?.missingSkills?.join(", ") || ""}
 
 PREVIOUS QUESTIONS:
 ${asked.join("\n")}
+${followUpInstruction}
 
 IMPORTANT RULES:
 

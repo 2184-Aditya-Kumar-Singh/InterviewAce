@@ -16,6 +16,7 @@ export type InterviewPlan = "FREE" | "PRO" | "PREMIUM";
 
 export type ParsedResume = {
   rawText: string;
+  name?: string;
   skills: string[];
   education: string[];
   projects: string[];

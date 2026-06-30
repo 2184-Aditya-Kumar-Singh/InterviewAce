@@ -25,6 +25,11 @@ export async function generateQuestion(
     plan: InterviewPlan;
 
     asked: string[];
+
+    qaHistory?: {
+      question: string;
+      answer: string;
+    }[];
   }
 ): Promise<InterviewQuestion> {
   try {
