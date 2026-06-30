@@ -1270,14 +1270,14 @@ const user =
               : "lg:grid-cols-[360px_1fr]"
           }`}
         >
-          <div
-            className={`min-w-0 space-y-6 ${
-              interviewStarted &&
-              plan === "PREMIUM"
-                ? "xl:sticky xl:top-6 xl:self-start"
-                : ""
-            }`}
-          >
+         <div
+  className={`min-w-0 space-y-6 ${
+    interviewStarted &&
+    plan === "PREMIUM"
+      ? "xl:sticky xl:top-6 xl:self-start xl:h-[calc(100vh-3rem)]"
+      : ""
+  }`}
+>
             {interviewStarted &&
             plan === "PREMIUM" ? (
               <Avatar
