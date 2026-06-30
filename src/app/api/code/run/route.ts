@@ -120,95 +120,100 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid code execution request." }, { status: 400 });
   }
     try {
-   const languageMap: Record<
+    const languageMap: Record<
       string,
-      { language: string; version: string }
+      { language: string; version: string; filename: string }
     > = {
-      Java: { language: "java", version: "15.0.2" },
-      Python: { language: "python", version: "3.10.0" },
-      "C++": { language: "c++", version: "10.2.0" },
+      Java: { language: "java", version: "15.0.2", filename: "Main.java" },
+      Python: { language: "python", version: "3.10.0", filename: "main.py" },
+      "C++": { language: "c++", version: "10.2.0", filename: "main.cpp" },
       JavaScript: {
         language: "javascript",
         version: "18.15.0",
+        filename: "main.js",
       },
-      C: { language: "c", version: "10.2.0" },
+      C: { language: "c", version: "10.2.0", filename: "main.c" },
     };
 
     const pistonUrl =
       process.env.PISTON_API_URL ||
       "https://emkc.org/api/v2/piston/execute";
 
+    console.log("PISTON REQUEST URL:", pistonUrl);
+    console.log("PISTON REQUEST LANGUAGE:", parsed.data.language);
+
     const response = await fetch(pistonUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(process.env.PISTON_API_KEY
-          ? {
-              Authorization: process.env
-                .PISTON_API_KEY as string,
-            }
+          ? { Authorization: process.env.PISTON_API_KEY as string }
           : {}),
       },
       body: JSON.stringify({
-        language:
-          languageMap[parsed.data.language].language,
-        version:
-          languageMap[parsed.data.language].version,
-        files: [{ content: parsed.data.code }],
+        language: languageMap[parsed.data.language].language,
+        version: languageMap[parsed.data.language].version,
+        files: [
+          {
+            name: languageMap[parsed.data.language].filename,
+            content: parsed.data.code,
+          },
+        ],
         stdin: parsed.data.stdin,
       }),
     });
 
-    const result = await response.json();
-    console.log(result);
+    console.log("PISTON HTTP STATUS:", response.status);
 
-    const compileFailed =
-      result.compile &&
-      result.compile.code !== 0;
+    const result = await response.json();
+    console.log("PISTON RAW RESULT:", JSON.stringify(result, null, 2));
+
+    if (!response.ok) {
+      throw new Error(
+        `Piston returned ${response.status}: ${JSON.stringify(result)}`
+      );
+    }
+
+    const compileFailed = result.compile && result.compile.code !== 0;
 
     return NextResponse.json({
       language: parsed.data.language,
       version: "Piston",
-
       compile: compileFailed
         ? {
             stdout: "",
             stderr: result.compile.stderr || "",
-            output:
-              result.compile.output ||
-              result.compile.stderr ||
-              "",
+            output: result.compile.output || result.compile.stderr || "",
             code: 1,
           }
         : null,
-
       run: {
         stdout: result.run?.stdout || "",
         stderr: result.run?.stderr || "",
-
         output:
           result.run?.output ||
           result.run?.stdout ||
           result.run?.stderr ||
           "Program finished with no output.",
-
         code: result.run?.code ?? 0,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("PISTON CALL FAILED, FALLING BACK TO LOCAL:", err);
     try {
       const result = await runLocally(
         parsed.data.language,
         parsed.data.code,
         parsed.data.stdin
       );
-
+      console.log("LOCAL RUN RESULT:", JSON.stringify(result, null, 2));
       return NextResponse.json(result);
-    } catch {
+    } catch (localErr) {
+      console.error("LOCAL EXECUTION ALSO FAILED:", localErr);
       return NextResponse.json(
         {
           error:
-            "Could not reach Judge0 and local execution is unavailable.",
+            "Could not reach Piston and local execution is unavailable.",
         },
         { status: 503 }
       );
