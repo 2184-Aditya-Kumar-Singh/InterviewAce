@@ -80,8 +80,11 @@ type SpeechRecognitionLike = {
   onresult:
     | ((
         event: {
+          resultIndex?: number;
           results: {
+            length: number;
             [index: number]: {
+              isFinal?: boolean;
               [index: number]: {
                 transcript: string;
               };
@@ -95,6 +98,8 @@ type SpeechRecognitionLike = {
 };
 
 const historyLimit = 80;
+const voiceAutoSubmitDelayMs =
+  7000;
 
 function getHistory(
   kind: "interview" | "coding"
@@ -277,6 +282,15 @@ export default function InterviewPage() {
       null
     );
 
+  const voiceAnswerRef =
+    useRef("");
+
+  const voiceSubmitTimerRef =
+    useRef<number | null>(null);
+
+  const keepListeningRef =
+    useRef(false);
+
   const lastSpokenQuestionIdRef =
     useRef<string | null>(null);
 
@@ -321,6 +335,41 @@ export default function InterviewPage() {
         text,
       },
     ]);
+  }
+
+  function clearVoiceSubmitTimer() {
+    if (
+      voiceSubmitTimerRef.current !==
+      null
+    ) {
+      window.clearTimeout(
+        voiceSubmitTimerRef.current
+      );
+      voiceSubmitTimerRef.current =
+        null;
+    }
+  }
+
+  function scheduleVoiceSubmit(
+    nextAnswer: string
+  ) {
+    clearVoiceSubmitTimer();
+
+    voiceSubmitTimerRef.current =
+      window.setTimeout(() => {
+        const finalAnswer =
+          voiceAnswerRef.current.trim() ||
+          nextAnswer.trim();
+
+        if (!finalAnswer) {
+          return;
+        }
+
+        keepListeningRef.current =
+          false;
+        recognitionRef.current?.stop();
+        submitAnswer(finalAnswer);
+      }, voiceAutoSubmitDelayMs);
   }
 
   useEffect(() => {
@@ -401,10 +450,10 @@ const data =
       new SpeechRecognition();
 
     recog.continuous =
-      false;
+      true;
 
     recog.interimResults =
-      false;
+      true;
 
     recog.lang = "en-US";
 
@@ -421,44 +470,84 @@ const data =
       {
         setListening(false);
         avatar.stopListening();
+
+        if (
+          keepListeningRef.current &&
+          plan === "PREMIUM" &&
+          interviewStarted &&
+          !avatar.isSpeaking &&
+          loading === ""
+        ) {
+          window.setTimeout(() => {
+            try {
+              recognitionRef.current?.start();
+            } catch (error) {
+              console.error(error);
+            }
+          }, 450);
+        }
       };
 
     recog.onresult = (
-      event: {
-        results: {
-          [index: number]: {
+        event: {
+          resultIndex?: number;
+          results: {
+            length: number;
             [index: number]: {
-              transcript: string;
-            };
+              isFinal?: boolean;
+              [index: number]: {
+                transcript: string;
+              };
           };
         };
       }
     ) => {
-      const transcript =
-        event.results[0][0]
-          .transcript;
+      let finalText = "";
+      let interimText = "";
+      const startIndex =
+        event.resultIndex || 0;
+
+      for (
+        let index = startIndex;
+        index < event.results.length;
+        index += 1
+      ) {
+        const result =
+          event.results[index];
+        const text =
+          result[0]?.transcript || "";
+
+        if (result.isFinal) {
+          finalText += ` ${text}`;
+        } else {
+          interimText += ` ${text}`;
+        }
+      }
+
+      if (finalText.trim()) {
+        voiceAnswerRef.current =
+          `${voiceAnswerRef.current} ${finalText}`
+            .replace(/\s+/g, " ")
+            .trim();
+      }
+
+      const visibleTranscript =
+        `${voiceAnswerRef.current} ${interimText}`
+          .replace(/\s+/g, " ")
+          .trim();
 
       setAnswer(
-        transcript
-      );
-
-      addTranscript(
-        "candidate",
-        transcript
+        visibleTranscript
       );
 
       if (
         plan ===
-        "PREMIUM"
+          "PREMIUM" &&
+        finalText.trim()
       ) {
-        interview.transitionTo(
-          "PROCESSING"
+        scheduleVoiceSubmit(
+          voiceAnswerRef.current
         );
-        setTimeout(() => {
-          submitAnswer(
-            transcript
-          );
-        }, 1200);
       }
     };
 
@@ -468,6 +557,8 @@ const data =
     plan,
     avatar,
     interview,
+    interviewStarted,
+    loading,
   ]);
 
   useEffect(() => {
@@ -558,6 +649,21 @@ const data =
         interview.transitionTo(
           "WAITING_FOR_USER"
         );
+        if (
+          recognitionRef.current
+        ) {
+          keepListeningRef.current =
+            true;
+          voiceAnswerRef.current = "";
+          setAnswer("");
+          window.setTimeout(() => {
+            try {
+              recognitionRef.current?.start();
+            } catch (error) {
+              console.error(error);
+            }
+          }, 600);
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -709,6 +815,10 @@ const data =
   ) {
     if (!question) return;
 
+    clearVoiceSubmitTimer();
+    keepListeningRef.current =
+      false;
+
     const finalAnswer =
       customAnswer ||
       answer;
@@ -718,12 +828,10 @@ const data =
       "PROCESSING"
     );
 
-    if (!customAnswer) {
-      addTranscript(
-        "candidate",
-        finalAnswer
-      );
-    }
+    addTranscript(
+      "candidate",
+      finalAnswer
+    );
 
     const nextAnswers = [
       ...answers,
@@ -756,6 +864,7 @@ const data =
     setAnswers(nextAnswers);
 
     setAnswer("");
+    voiceAnswerRef.current = "";
 
     const codingRoundsAsked =
       nextAnswers.filter(
@@ -1103,17 +1212,24 @@ const user =
 
   return (
     <AuthGuard>
-      <AppShell>
+      <AppShell
+        contentClassName={
+          interviewStarted &&
+          plan === "PREMIUM"
+            ? "max-w-none"
+            : ""
+        }
+      >
         <div
-          className={`grid gap-5 ${
+          className={`grid min-w-0 gap-5 ${
             interviewStarted &&
             plan === "PREMIUM"
-              ? "xl:grid-cols-2"
+              ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
               : "lg:grid-cols-[360px_1fr]"
           }`}
         >
           <div
-            className={`space-y-6 ${
+            className={`min-w-0 space-y-6 ${
               interviewStarted &&
               plan === "PREMIUM"
                 ? "xl:sticky xl:top-6 xl:self-start"
@@ -1181,7 +1297,7 @@ const user =
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             {interviewStarted && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/70 p-5">
                 <StatusIndicator
@@ -1206,10 +1322,17 @@ const user =
                     }
                     onClick={() => {
                       if (listening) {
+                        keepListeningRef.current =
+                          false;
+                        clearVoiceSubmitTimer();
                         recognitionRef.current?.stop();
                         return;
                       }
 
+                      keepListeningRef.current =
+                        true;
+                      voiceAnswerRef.current =
+                        answer;
                       recognitionRef.current?.start();
                     }}
                   />

@@ -28,7 +28,13 @@ const nav = [
   { href: "/admin", label: "Admin", icon: Shield },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  contentClassName = "",
+}: {
+  children: React.ReactNode;
+  contentClassName?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -126,7 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
       <main className="lg:pl-64">
-        <div className="mx-auto min-h-screen max-w-7xl px-3 py-4 sm:px-6 lg:px-8">{children}</div>
+        <div className={`mx-auto min-h-screen max-w-7xl px-3 py-4 sm:px-6 lg:px-8 ${contentClassName}`}>{children}</div>
       </main>
     </div>
   );

@@ -3,6 +3,9 @@ import "server-only";
 const liveAvatarApiUrl =
   "https://api.liveavatar.com";
 
+const defaultMaxSessionDurationSeconds =
+  600;
+
 type LiveAvatarTokenApiResponse = {
   code?: number;
   data?: {
@@ -78,7 +81,11 @@ export async function createLiveAvatarSessionToken(
         interactivity_type:
           "CONVERSATIONAL",
         is_sandbox: false,
-        max_session_duration: 2700,
+        max_session_duration:
+          Number(
+            process.env.LIVEAVATAR_MAX_SESSION_DURATION_SECONDS
+          ) ||
+          defaultMaxSessionDurationSeconds,
         video_settings: {
           quality: "high",
           encoding: "H264",

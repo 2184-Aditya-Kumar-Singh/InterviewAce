@@ -83,9 +83,11 @@ Add this server-only value to `.env.local` and Vercel:
 
 ```bash
 LIVEAVATAR_API_KEY=
+LIVEAVATAR_MAX_SESSION_DURATION_SECONDS=600
 ```
 
 `HEYGEN_API_KEY` is still accepted as a fallback for local compatibility, but new deployments should use `LIVEAVATAR_API_KEY`.
+`LIVEAVATAR_MAX_SESSION_DURATION_SECONDS` defaults to 600. Increase it only if your LiveAvatar plan allows longer sessions.
 
 Public avatar identity IDs are configured per interview type:
 
