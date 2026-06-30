@@ -2,22 +2,33 @@ import {
   NextResponse,
 } from "next/server";
 
-import { createHeyGenStreamingToken } from "@/lib/heygen/client";
+import {
+  createLiveAvatarSessionToken,
+  LiveAvatarApiError,
+} from "@/lib/heygen/client";
 import type {
   HeyGenApiError,
-  HeyGenTokenResponse,
+  LiveAvatarTokenRequest,
+  LiveAvatarTokenResponse,
 } from "@/lib/heygen/session";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(
+  request: Request
+) {
   try {
-    const token =
-      await createHeyGenStreamingToken();
+    const body =
+      (await request.json()) as Partial<LiveAvatarTokenRequest>;
 
-    return NextResponse.json<HeyGenTokenResponse>(
+    const sessionToken =
+      await createLiveAvatarSessionToken(
+        body.avatarId || ""
+      );
+
+    return NextResponse.json<LiveAvatarTokenResponse>(
       {
-        token,
+        sessionToken,
       }
     );
   } catch (error) {
@@ -31,10 +42,13 @@ export async function POST() {
         error:
           error instanceof Error
             ? error.message
-            : "Could not start HeyGen avatar.",
+            : "Could not start LiveAvatar interviewer.",
       },
       {
-        status: 500,
+        status:
+          error instanceof LiveAvatarApiError
+            ? error.status
+            : 500,
       }
     );
   }

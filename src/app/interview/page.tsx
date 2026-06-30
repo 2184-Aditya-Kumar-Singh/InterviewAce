@@ -1123,13 +1123,13 @@ const user =
             {interviewStarted &&
             plan === "PREMIUM" ? (
               <Avatar
-                stream={
-                  avatar.mediaStream
-                }
                 state={avatar.state}
                 error={avatar.error}
                 profile={
                   avatarProfile
+                }
+                onVideoReady={
+                  avatar.attachVideo
                 }
               />
             ) : (

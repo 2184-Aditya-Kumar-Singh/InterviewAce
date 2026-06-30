@@ -1,5 +1,9 @@
-export type HeyGenTokenResponse = {
-  token: string;
+export type LiveAvatarTokenRequest = {
+  avatarId: string;
+};
+
+export type LiveAvatarTokenResponse = {
+  sessionToken: string;
 };
 
 export type HeyGenApiError = {

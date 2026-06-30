@@ -7,14 +7,15 @@ import {
   useState,
 } from "react";
 
-import type StreamingAvatar from "@heygen/streaming-avatar";
+import type {
+  LiveAvatarSession,
+} from "@heygen/liveavatar-web-sdk";
 import {
-  AvatarQuality,
-  StreamingEvents,
-  TaskMode,
-  TaskType,
-  VoiceEmotion,
-} from "@heygen/streaming-avatar";
+  AgentEventsEnum,
+  SessionEvent,
+  SessionInteractivityMode,
+  SessionState,
+} from "@heygen/liveavatar-web-sdk";
 
 import type {
   HeyGenAvatarProfile,
@@ -28,8 +29,8 @@ export type AvatarState =
   | "DISCONNECTED"
   | "ERROR";
 
-type StreamingAvatarConstructor =
-  typeof StreamingAvatar;
+type LiveAvatarSessionConstructor =
+  typeof LiveAvatarSession;
 
 function getErrorMessage(
   error: unknown
@@ -48,47 +49,6 @@ function getErrorMessage(
     error &&
     typeof error === "object"
   ) {
-    const record =
-      error as Record<
-        string,
-        unknown
-      >;
-
-    const directMessage =
-      record.message ||
-      record.error ||
-      record.detail;
-
-    if (
-      typeof directMessage ===
-      "string"
-    ) {
-      return directMessage;
-    }
-
-    if (
-      record.response &&
-      typeof record.response ===
-        "object"
-    ) {
-      const response =
-        record.response as Record<
-          string,
-          unknown
-        >;
-      const responseMessage =
-        response.message ||
-        response.error ||
-        response.data;
-
-      if (
-        typeof responseMessage ===
-        "string"
-      ) {
-        return responseMessage;
-      }
-    }
-
     try {
       return JSON.stringify(error);
     } catch {
@@ -104,23 +64,41 @@ export function useAvatar(
   enabled: boolean
 ) {
   const avatarRef =
-    useRef<StreamingAvatar | null>(
+    useRef<LiveAvatarSession | null>(
+      null
+    );
+  const videoElementRef =
+    useRef<HTMLVideoElement | null>(
       null
     );
   const pendingSpeakResolveRef =
     useRef<(() => void) | null>(
       null
     );
-  const [
-    mediaStream,
-    setMediaStream,
-  ] = useState<MediaStream | null>(
-    null
-  );
   const [state, setState] =
     useState<AvatarState>("IDLE");
   const [error, setError] =
     useState("");
+
+  const attachVideo =
+    useCallback(
+      (
+        element: HTMLVideoElement | null
+      ) => {
+        videoElementRef.current =
+          element;
+
+        if (
+          element &&
+          avatarRef.current
+        ) {
+          avatarRef.current.attach(
+            element
+          );
+        }
+      },
+      []
+    );
 
   const stop = useCallback(async () => {
     pendingSpeakResolveRef.current?.();
@@ -128,21 +106,19 @@ export function useAvatar(
       null;
 
     try {
-      await avatarRef.current?.stopAvatar();
+      await avatarRef.current?.stop();
     } catch (stopError) {
       console.error(stopError);
     }
 
-    mediaStream
-      ?.getTracks()
-      .forEach((track) =>
-        track.stop()
-      );
+    if (videoElementRef.current) {
+      videoElementRef.current.srcObject =
+        null;
+    }
 
     avatarRef.current = null;
-    setMediaStream(null);
     setState("DISCONNECTED");
-  }, [mediaStream]);
+  }, []);
 
   const start = useCallback(async () => {
     if (
@@ -163,6 +139,14 @@ export function useAvatar(
           "/api/heygen/token",
           {
             method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              avatarId:
+                profile.avatarName,
+            }),
           }
         );
       const tokenData =
@@ -170,43 +154,74 @@ export function useAvatar(
 
       if (
         !tokenResponse.ok ||
-        !tokenData?.token
+        !tokenData?.sessionToken
       ) {
         throw new Error(
           tokenData?.error ||
-            "Could not connect to HeyGen avatar."
+            "Could not connect to LiveAvatar interviewer."
         );
       }
 
       const avatarSdk =
         await import(
-          "@heygen/streaming-avatar"
+          "@heygen/liveavatar-web-sdk"
         );
       const AvatarClient =
-        avatarSdk.default as StreamingAvatarConstructor;
+        avatarSdk.LiveAvatarSession as LiveAvatarSessionConstructor;
 
       const avatar =
-        new AvatarClient({
-          token: tokenData.token,
-        });
+        new AvatarClient(
+          tokenData.sessionToken,
+          {
+            voiceChat: {
+              defaultMuted: true,
+              mode: SessionInteractivityMode.PUSH_TO_TALK,
+            },
+          }
+        );
 
       avatar.on(
-        StreamingEvents.STREAM_READY,
-        (stream: MediaStream) => {
-          setMediaStream(stream);
+        SessionEvent.SESSION_STREAM_READY,
+        () => {
+          if (
+            videoElementRef.current
+          ) {
+            avatar.attach(
+              videoElementRef.current
+            );
+          }
           setState("READY");
         }
       );
 
       avatar.on(
-        StreamingEvents.AVATAR_START_TALKING,
+        SessionEvent.SESSION_STATE_CHANGED,
+        (sessionState) => {
+          if (
+            sessionState ===
+            SessionState.CONNECTING
+          ) {
+            setState("CONNECTING");
+          }
+
+          if (
+            sessionState ===
+            SessionState.CONNECTED
+          ) {
+            setState("READY");
+          }
+        }
+      );
+
+      avatar.on(
+        AgentEventsEnum.AVATAR_SPEAK_STARTED,
         () => {
           setState("AVATAR_SPEAKING");
         }
       );
 
       avatar.on(
-        StreamingEvents.AVATAR_STOP_TALKING,
+        AgentEventsEnum.AVATAR_SPEAK_ENDED,
         () => {
           setState("READY");
           pendingSpeakResolveRef.current?.();
@@ -216,30 +231,15 @@ export function useAvatar(
       );
 
       avatar.on(
-        StreamingEvents.STREAM_DISCONNECTED,
+        SessionEvent.SESSION_DISCONNECTED,
         () => {
           setState("DISCONNECTED");
-          setMediaStream(null);
         }
       );
 
       avatarRef.current = avatar;
 
-      await avatar.createStartAvatar({
-        quality:
-          AvatarQuality.Medium,
-        avatarName:
-          profile.avatarName,
-        voice: {
-          voiceId:
-            profile.voiceId,
-          rate: 1,
-          emotion:
-            VoiceEmotion.FRIENDLY,
-        },
-        language: "en",
-        activityIdleTimeout: 600,
-      });
+      await avatar.start();
     } catch (startError) {
       console.error(startError);
       setError(
@@ -252,7 +252,6 @@ export function useAvatar(
   }, [
     enabled,
     profile.avatarName,
-    profile.voiceId,
     state,
   ]);
 
@@ -276,12 +275,7 @@ export function useAvatar(
       }
 
       setState("AVATAR_SPEAKING");
-
-      await avatar.speak({
-        text,
-        task_type: TaskType.REPEAT,
-        taskMode: TaskMode.SYNC,
-      });
+      avatar.repeat(text);
 
       await new Promise<void>(
         (resolve) => {
@@ -311,13 +305,21 @@ export function useAvatar(
   );
 
   const showListening =
-    useCallback(async () => {
-      await avatarRef.current?.startListening();
+    useCallback(() => {
+      try {
+        avatarRef.current?.startListening();
+      } catch (listenError) {
+        console.error(listenError);
+      }
     }, []);
 
   const stopListening =
-    useCallback(async () => {
-      await avatarRef.current?.stopListening();
+    useCallback(() => {
+      try {
+        avatarRef.current?.stopListening();
+      } catch (listenError) {
+        console.error(listenError);
+      }
     }, []);
 
   useEffect(() => {
@@ -333,9 +335,9 @@ export function useAvatar(
   }, [enabled]);
 
   return {
-    mediaStream,
     state,
     error,
+    attachVideo,
     start,
     speak,
     stop,

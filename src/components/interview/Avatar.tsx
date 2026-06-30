@@ -18,15 +18,17 @@ import type {
 } from "@/lib/heygen/avatar";
 
 export function Avatar({
-  stream,
   state,
   error,
   profile,
+  onVideoReady,
 }: {
-  stream: MediaStream | null;
   state: AvatarState;
   error?: string;
   profile: HeyGenAvatarProfile;
+  onVideoReady: (
+    element: HTMLVideoElement | null
+  ) => void;
 }) {
   const videoRef =
     useRef<HTMLVideoElement | null>(
@@ -34,10 +36,11 @@ export function Avatar({
     );
 
   useEffect(() => {
-    if (!videoRef.current) return;
-    videoRef.current.srcObject =
-      stream;
-  }, [stream]);
+    onVideoReady(videoRef.current);
+
+    return () =>
+      onVideoReady(null);
+  }, [onVideoReady]);
 
   const connecting =
     state === "CONNECTING" ||
@@ -46,14 +49,22 @@ export function Avatar({
   return (
     <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-black">
       <div className="relative aspect-video min-h-[380px] bg-[radial-gradient(circle_at_50%_25%,#123e48,#020617_70%)]">
-        {stream ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="h-full w-full object-cover"
-          />
-        ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className={`h-full w-full object-cover ${
+            state === "READY" ||
+            state ===
+              "AVATAR_SPEAKING"
+              ? "block"
+              : "hidden"
+          }`}
+        />
+
+        {state === "READY" ||
+        state ===
+          "AVATAR_SPEAKING" ? null : (
           <div className="grid h-full min-h-[380px] place-items-center px-6 text-center sm:px-8">
             <div className="max-w-md">
               <div className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-white/10 bg-white/5 text-emerald-300">

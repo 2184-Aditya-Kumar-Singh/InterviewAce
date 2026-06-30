@@ -9,7 +9,7 @@ Production-ready full-stack SaaS starter for AI mock interviews, optimized for z
 - Supabase free tier for PostgreSQL, Auth, and Storage
 - Vercel free tier deployment
 - Monaco editor for future Premium coding rounds
-- HeyGen Streaming Avatar for Premium live interviewer sessions
+- HeyGen LiveAvatar for Premium live interviewer sessions
 - Free Piston API proxy for Java, Python, C++, and C execution
 - Optional Groq/OpenAI API integration with local mock fallback
 
@@ -29,7 +29,7 @@ cp .env.example .env.local
 
 3. Add Supabase keys if you have them. Leave them blank for demo mode. The Continue with Google button is already wired; it starts real Google OAuth as soon as Supabase Auth variables and the Google provider are configured.
 
-   Add `GROQ_API_KEY` for AI-generated interview questions and `HEYGEN_API_KEY` for the Premium live avatar.
+   Add `GROQ_API_KEY` for AI-generated interview questions and `LIVEAVATAR_API_KEY` for the Premium live avatar.
 
 4. Run the app:
 
@@ -62,6 +62,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 GROQ_API_KEY=
+LIVEAVATAR_API_KEY=
 HEYGEN_API_KEY=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
@@ -72,19 +73,21 @@ PISTON_API_KEY=
 Use either `NEXT_PUBLIC_SUPABASE_ANON_KEY` or Supabase's newer `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only and never expose it in client code.
 `PISTON_API_KEY` is optional for self-hosted Piston. The public EMKC endpoint may require authorization depending on current capacity and policy.
 
-## HeyGen Streaming Avatar
+## HeyGen LiveAvatar
 
-Premium interviews use HeyGen as the visual interviewer layer. Groq still owns all interview reasoning: question generation, follow-up logic, answer evaluation, code review, and final reports. HeyGen only receives the final interviewer text and speaks it through a live avatar.
+Premium interviews use HeyGen LiveAvatar as the visual interviewer layer. Groq still owns all interview reasoning: question generation, follow-up logic, answer evaluation, code review, and final reports. LiveAvatar only receives the final interviewer text and speaks it through a live avatar.
 
 ### Setup
 
 Add this server-only value to `.env.local` and Vercel:
 
 ```bash
-HEYGEN_API_KEY=
+LIVEAVATAR_API_KEY=
 ```
 
-Optional public avatar IDs can be configured per interview type:
+`HEYGEN_API_KEY` is still accepted as a fallback for local compatibility, but new deployments should use `LIVEAVATAR_API_KEY`.
+
+Public avatar identity IDs are configured per interview type:
 
 ```bash
 NEXT_PUBLIC_HEYGEN_HR_AVATAR=
@@ -92,15 +95,15 @@ NEXT_PUBLIC_HEYGEN_TECH_AVATAR=
 NEXT_PUBLIC_HEYGEN_MIXED_AVATAR=
 ```
 
-If these are blank, the app uses a default public HeyGen avatar ID. For production, choose avatar IDs from your HeyGen Interactive Avatar dashboard.
+For production, choose avatar identity IDs from your LiveAvatar dashboard. The old HeyGen Streaming Avatar API is sunset, so keys that only work in the old HeyGen developer dashboard will not create LiveAvatar sessions.
 
 ### How It Works
 
 1. The Premium interview page calls `/api/heygen/token`.
-2. The API route creates a short-lived HeyGen streaming token using `HEYGEN_API_KEY`.
-3. The browser initializes `@heygen/streaming-avatar` with that token.
-4. HeyGen emits a live `MediaStream`, which is attached to the avatar video panel.
-5. When Groq returns the next interview question, the app calls `avatar.speak(...)`.
+2. The API route creates a short-lived LiveAvatar session token using `LIVEAVATAR_API_KEY`.
+3. The browser initializes `@heygen/liveavatar-web-sdk` with that token.
+4. The SDK attaches the LiveAvatar stream to the avatar video panel.
+5. When Groq returns the next interview question, the app calls `avatar.repeat(...)`.
 6. The microphone is disabled while the avatar is speaking.
 7. When speaking finishes, the interview state changes to `WAITING_FOR_USER`.
 8. The user clicks the microphone, Web Speech API records the answer, and the transcript is sent back through the existing Groq interview flow.
