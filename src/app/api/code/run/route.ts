@@ -112,101 +112,102 @@ async function runLocally(language: keyof typeof languageConfig, code: string, s
 }
 
 export async function POST(request: NextRequest) {
-  const limited = rateLimit(`code:${request.headers.get("x-forwarded-for") || "local"}`, 12, 60_000);
+  const limited = rateLimit(
+    `code:${request.headers.get("x-forwarded-for") || "local"}`,
+    12,
+    60_000
+  );
   if (limited) return limited;
 
   const parsed = schema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid code execution request." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid code execution request." },
+      { status: 400 }
+    );
   }
-    try {
-    const languageMap: Record<
-      string,
-      { language: string; version: string; filename: string }
-    > = {
-      Java: { language: "java", version: "15.0.2", filename: "Main.java" },
-      Python: { language: "python", version: "3.10.0", filename: "main.py" },
-      "C++": { language: "c++", version: "10.2.0", filename: "main.cpp" },
-      JavaScript: {
-        language: "javascript",
-        version: "18.15.0",
-        filename: "main.js",
+
+  // CodeX-API language codes
+  // Swap this map to change provider without touching anything else
+  const languageMap: Record<string, string> = {
+    Python: "py",
+    JavaScript: "js",
+    Java: "java",
+    "C++": "cpp",
+    C: "c",
+  };
+
+  const codexLanguage = languageMap[parsed.data.language];
+
+  if (!codexLanguage) {
+    return NextResponse.json({
+      language: parsed.data.language,
+      version: "CodeX",
+      compile: null,
+      run: {
+        stdout: "",
+        stderr: "",
+        output: `Language "${parsed.data.language}" is not supported.`,
+        code: 1,
       },
-      C: { language: "c", version: "10.2.0", filename: "main.c" },
-    };
+    });
+  }
 
-    const pistonUrl =
-      process.env.PISTON_API_URL ||
-      "https://emkc.org/api/v2/piston/execute";
+  try {
+    const codexUrl =
+      process.env.CODEX_API_URL || "https://api.codex.jaagrav.in";
 
-    console.log("PISTON REQUEST URL:", pistonUrl);
-    console.log("PISTON REQUEST LANGUAGE:", parsed.data.language);
-
-    const response = await fetch(pistonUrl, {
+    const response = await fetch(codexUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(process.env.PISTON_API_KEY
-          ? { Authorization: process.env.PISTON_API_KEY as string }
-          : {}),
       },
       body: JSON.stringify({
-        language: languageMap[parsed.data.language].language,
-        version: languageMap[parsed.data.language].version,
-        files: [
-          {
-            name: languageMap[parsed.data.language].filename,
-            content: parsed.data.code,
-          },
-        ],
-        stdin: parsed.data.stdin,
+        code: parsed.data.code,
+        language: codexLanguage,
+        input: parsed.data.stdin || "",
       }),
     });
 
-    console.log("PISTON HTTP STATUS:", response.status);
-
-    const result = await response.json();
-    console.log("PISTON RAW RESULT:", JSON.stringify(result, null, 2));
-
     if (!response.ok) {
+      const text = await response.text();
       throw new Error(
-        `Piston returned ${response.status}: ${JSON.stringify(result)}`
+        `CodeX API returned ${response.status}: ${text}`
       );
     }
 
-    const compileFailed = result.compile && result.compile.code !== 0;
+    const result = await response.json();
+
+    // CodeX returns { success, output, error, timeStamp }
+    const hasError =
+      !result.success ||
+      (typeof result.error === "string" && result.error.trim().length > 0);
+
+    const output = result.output || "";
+    const errorText = result.error || "";
 
     return NextResponse.json({
       language: parsed.data.language,
-      version: "Piston",
-      compile: compileFailed
-        ? {
-            stdout: "",
-            stderr: result.compile.stderr || "",
-            output: result.compile.output || result.compile.stderr || "",
-            code: 1,
-          }
-        : null,
+      version: "CodeX",
+      compile: null,
       run: {
-        stdout: result.run?.stdout || "",
-        stderr: result.run?.stderr || "",
-        output:
-          result.run?.output ||
-          result.run?.stdout ||
-          result.run?.stderr ||
-          "Program finished with no output.",
-        code: result.run?.code ?? 0,
+        stdout: output,
+        stderr: errorText,
+        output: output || errorText || "Program finished with no output.",
+        code: hasError ? 1 : 0,
       },
     });
   } catch (err) {
     return NextResponse.json({
       language: parsed.data.language,
-      version: "Piston",
+      version: "CodeX",
       compile: null,
       run: {
         stdout: "",
         stderr: "",
-        output: `DEBUG ERROR: ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+        output: `Execution error: ${
+          err instanceof Error ? err.message : JSON.stringify(err)
+        }`,
         code: 1,
       },
     });
