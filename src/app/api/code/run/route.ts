@@ -199,24 +199,16 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("PISTON CALL FAILED, FALLING BACK TO LOCAL:", err);
-    try {
-      const result = await runLocally(
-        parsed.data.language,
-        parsed.data.code,
-        parsed.data.stdin
-      );
-      console.log("LOCAL RUN RESULT:", JSON.stringify(result, null, 2));
-      return NextResponse.json(result);
-    } catch (localErr) {
-      console.error("LOCAL EXECUTION ALSO FAILED:", localErr);
-      return NextResponse.json(
-        {
-          error:
-            "Could not reach Piston and local execution is unavailable.",
-        },
-        { status: 503 }
-      );
-    }
+    return NextResponse.json({
+      language: parsed.data.language,
+      version: "Piston",
+      compile: null,
+      run: {
+        stdout: "",
+        stderr: "",
+        output: `DEBUG ERROR: ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+        code: 1,
+      },
+    });
   }
 }
